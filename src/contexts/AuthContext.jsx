@@ -1,5 +1,11 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
+  browserLocalPersistence,
+  setPersistence
+} from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 
 const AuthContext = createContext();
@@ -14,11 +20,8 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Check for redirect result first
-    getRedirectResult(auth).catch((error) => {
-      console.error('Redirect error:', error);
-      setError(error.message);
-    });
+    // Set persistence to local (survives browser restart)
+    setPersistence(auth, browserLocalPersistence).catch(console.error);
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
@@ -30,21 +33,13 @@ export function AuthProvider({ children }) {
   const login = async () => {
     setError(null);
     try {
+      // Set persistence before sign in
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error('Login error:', error);
-      // If popup fails, try redirect (works better on mobile)
-      if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-        } catch (redirectError) {
-          setError(redirectError.message);
-          throw redirectError;
-        }
-      } else {
-        setError(error.message);
-        throw error;
-      }
+      setError(error.message);
+      throw error;
     }
   };
 
