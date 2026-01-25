@@ -67,16 +67,23 @@
   margin-bottom: 16px;
 }
 
-.search-input {
+.quick-add-form {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+}
+
+.quick-add-input {
   flex: 1;
   padding: 10px 14px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 1rem;
   background: var(--card-bg);
+  color: var(--text-primary);
 }
 
-.search-input:focus {
+.quick-add-input:focus {
   outline: none;
   border-color: var(--primary-color);
 }
@@ -87,6 +94,7 @@
   border-radius: 8px;
   font-size: 1rem;
   background: var(--card-bg);
+  color: var(--text-primary);
   min-width: 120px;
 }
 
@@ -127,15 +135,50 @@
 
 .category-section {
   margin-bottom: 24px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.category-section.drag-over {
+  border-color: var(--primary-color);
+  background: var(--hover-bg);
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .category-title {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-secondary);
-  margin: 0 0 12px 0;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border-color);
+  margin: 0;
+}
+
+.category-delete-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 8px;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.category-section:hover .category-delete-btn {
+  opacity: 1;
+}
+
+.category-delete-btn:hover {
+  color: #dc3545;
 }
 
 .items-list {
@@ -147,12 +190,16 @@
 .item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px;
+  padding: 10px 12px;
   background: var(--card-bg);
   border-radius: 8px;
-  margin-bottom: 8px;
-  transition: opacity 0.2s, background 0.2s;
+  margin-bottom: 6px;
+  transition: opacity 0.2s, background 0.2s, transform 0.1s;
+  cursor: grab;
+}
+
+.item:active {
+  cursor: grabbing;
 }
 
 .item:hover {
@@ -171,43 +218,51 @@
   opacity: 0.4;
 }
 
+.drag-handle {
+  color: var(--text-secondary);
+  margin-right: 8px;
+  opacity: 0.4;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.item:hover .drag-handle {
+  opacity: 1;
+}
+
 .item-label {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
   cursor: pointer;
 }
 
 .item-label input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   cursor: pointer;
 }
 
 .item-name {
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .item-tags {
   display: flex;
   gap: 4px;
   margin-left: auto;
-  padding-right: 12px;
+  padding-right: 8px;
 }
 
 .tag {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   padding: 2px 6px;
   background: var(--primary-color);
   color: white;
   border-radius: 4px;
   opacity: 0.8;
-}
-
-.item-actions {
-  display: flex;
-  gap: 4px;
 }
 
 .item-btn {
@@ -233,8 +288,75 @@
   color: #dc3545;
 }
 
-.item-btn.edit:hover {
-  color: var(--primary-color);
+/* Category inline add form */
+.category-add-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.category-add-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--bg-color);
+  color: var(--text-primary);
+}
+
+.category-add-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.category-add-btn {
+  padding: 8px 14px;
+  background: var(--secondary-bg);
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background 0.2s;
+}
+
+.category-add-btn:hover {
+  background: var(--hover-bg);
+}
+
+/* Add category section */
+.add-category-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.add-category-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.add-category-input {
+  flex: 1;
+  min-width: 150px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.add-category-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.add-category-btn {
+  width: 100%;
 }
 
 .empty-state {
@@ -261,6 +383,14 @@
   }
 
   .item-btn {
+    opacity: 1;
+  }
+
+  .drag-handle {
+    opacity: 1;
+  }
+
+  .category-delete-btn {
     opacity: 1;
   }
 }

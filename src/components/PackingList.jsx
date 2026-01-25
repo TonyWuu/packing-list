@@ -2,8 +2,6 @@ import { useState, useMemo } from 'react';
 import { usePackingList } from '../hooks/usePackingList';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import AddItemModal from './AddItemModal';
-import Settings from './Settings';
 import './PackingList.css';
 
 export default function PackingList() {
@@ -14,18 +12,23 @@ export default function PackingList() {
     settings,
     shareToken,
     loading,
+    addItem,
+    updateItem,
     toggleItem,
     deleteItem,
     resetAllChecks,
+    updateSettings,
     generateShareToken,
     revokeShareToken
   } = usePackingList();
 
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [selectedTripType, setSelectedTripType] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [editingItem, setEditingItem] = useState(null);
+  const [quickAddValue, setQuickAddValue] = useState('');
+  const [categoryInputs, setCategoryInputs] = useState({});
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [dragOverCategory, setDragOverCategory] = useState(null);
 
   // Group items by category
   const groupedItems = useMemo(() => {
@@ -33,30 +36,92 @@ export default function PackingList() {
     settings.categories.forEach(cat => {
       groups[cat] = [];
     });
+    // Add Uncategorized group
+    groups['Uncategorized'] = [];
 
     items
-      .filter(item => {
-        if (!searchQuery) return true;
-        return item.name.toLowerCase().includes(searchQuery.toLowerCase());
-      })
       .sort((a, b) => a.name.localeCompare(b.name))
       .forEach(item => {
         if (groups[item.category]) {
           groups[item.category].push(item);
         } else {
-          if (!groups['Misc']) groups['Misc'] = [];
-          groups['Misc'].push(item);
+          groups['Uncategorized'].push(item);
         }
       });
 
     return groups;
-  }, [items, settings.categories, searchQuery]);
+  }, [items, settings.categories]);
 
   // Check if item matches selected trip type filter
   const itemMatchesFilter = (item) => {
     if (!selectedTripType) return true;
-    if (item.tripTypes.length === 0) return true; // No conditions = always show
+    if (item.tripTypes.length === 0) return true;
     return item.tripTypes.includes(selectedTripType);
+  };
+
+  const handleQuickAdd = async (e) => {
+    e.preventDefault();
+    if (!quickAddValue.trim()) return;
+    await addItem(quickAddValue.trim(), 'Uncategorized', []);
+    setQuickAddValue('');
+  };
+
+  const handleCategoryAdd = async (category, e) => {
+    e.preventDefault();
+    const value = categoryInputs[category];
+    if (!value?.trim()) return;
+    await addItem(value.trim(), category, []);
+    setCategoryInputs(prev => ({ ...prev, [category]: '' }));
+  };
+
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    if (settings.categories.includes(newCategoryName.trim())) return;
+    await updateSettings({
+      ...settings,
+      categories: [...settings.categories, newCategoryName.trim()]
+    });
+    setNewCategoryName('');
+    setShowAddCategory(false);
+  };
+
+  const handleDeleteCategory = async (category) => {
+    if (!confirm(`Delete "${category}" category? Items will become uncategorized.`)) return;
+    await updateSettings({
+      ...settings,
+      categories: settings.categories.filter(c => c !== category)
+    });
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e, item) => {
+    setDraggedItem(item);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, category) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverCategory(category);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverCategory(null);
+  };
+
+  const handleDrop = async (e, category) => {
+    e.preventDefault();
+    setDragOverCategory(null);
+    if (draggedItem && draggedItem.category !== category) {
+      await updateItem(draggedItem.id, { category });
+    }
+    setDraggedItem(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDragOverCategory(null);
   };
 
   const handleShare = async () => {
@@ -87,8 +152,9 @@ export default function PackingList() {
     return <div className="loading">Loading...</div>;
   }
 
-  if (showSettings) {
-    return <Settings onClose={() => setShowSettings(false)} />;
+  const allCategories = [...settings.categories];
+  if (groupedItems['Uncategorized']?.length > 0) {
+    allCategories.push('Uncategorized');
   }
 
   return (
@@ -108,11 +174,6 @@ export default function PackingList() {
                 </svg>
               )}
             </button>
-            <button onClick={() => setShowSettings(true)} className="icon-btn" title="Settings">
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-              </svg>
-            </button>
             <button onClick={logout} className="icon-btn" title="Sign out">
               <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                 <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
@@ -130,13 +191,16 @@ export default function PackingList() {
         <div className="progress-text">{checkedCount} / {totalCount} packed</div>
 
         <div className="controls">
-          <input
-            type="text"
-            placeholder="Search items..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
-          />
+          <form onSubmit={handleQuickAdd} className="quick-add-form">
+            <input
+              type="text"
+              placeholder="Quick add item..."
+              value={quickAddValue}
+              onChange={(e) => setQuickAddValue(e.target.value)}
+              className="quick-add-input"
+            />
+            <button type="submit" className="btn primary">Add</button>
+          </form>
           <select
             value={selectedTripType}
             onChange={(e) => setSelectedTripType(e.target.value)}
@@ -150,9 +214,6 @@ export default function PackingList() {
         </div>
 
         <div className="action-buttons">
-          <button onClick={() => setShowAddModal(true)} className="btn primary">
-            + Add Item
-          </button>
           <button onClick={resetAllChecks} className="btn secondary">
             Reset All
           </button>
@@ -168,13 +229,32 @@ export default function PackingList() {
       </header>
 
       <main className="items-container">
-        {settings.categories.map(category => {
+        {allCategories.map(category => {
           const categoryItems = groupedItems[category] || [];
-          if (categoryItems.length === 0) return null;
+          const isUncategorized = category === 'Uncategorized';
+          const isDragOver = dragOverCategory === category;
 
           return (
-            <section key={category} className="category-section">
-              <h2 className="category-title">{category}</h2>
+            <section
+              key={category}
+              className={`category-section ${isDragOver ? 'drag-over' : ''}`}
+              onDragOver={(e) => handleDragOver(e, category)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, category)}
+            >
+              <div className="category-header">
+                <h2 className="category-title">{category}</h2>
+                {!isUncategorized && (
+                  <button
+                    onClick={() => handleDeleteCategory(category)}
+                    className="category-delete-btn"
+                    title="Delete category"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
               <ul className="items-list">
                 {categoryItems.map(item => {
                   const matches = itemMatchesFilter(item);
@@ -182,7 +262,15 @@ export default function PackingList() {
                     <li
                       key={item.id}
                       className={`item ${item.checked ? 'checked' : ''} ${!matches ? 'grayed' : ''}`}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, item)}
+                      onDragEnd={handleDragEnd}
                     >
+                      <div className="drag-handle">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                          <path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                        </svg>
+                      </div>
                       <label className="item-label">
                         <input
                           type="checkbox"
@@ -198,50 +286,82 @@ export default function PackingList() {
                           </span>
                         )}
                       </label>
-                      <div className="item-actions">
-                        <button
-                          onClick={() => setEditingItem(item)}
-                          className="item-btn edit"
-                          title="Edit"
-                        >
-                          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => deleteItem(item.id)}
-                          className="item-btn delete"
-                          title="Delete"
-                        >
-                          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                          </svg>
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => deleteItem(item.id)}
+                        className="item-btn delete"
+                        title="Delete"
+                      >
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                        </svg>
+                      </button>
                     </li>
                   );
                 })}
               </ul>
+
+              {!isUncategorized && (
+                <form
+                  onSubmit={(e) => handleCategoryAdd(category, e)}
+                  className="category-add-form"
+                >
+                  <input
+                    type="text"
+                    placeholder={`Add to ${category}...`}
+                    value={categoryInputs[category] || ''}
+                    onChange={(e) => setCategoryInputs(prev => ({
+                      ...prev,
+                      [category]: e.target.value
+                    }))}
+                    className="category-add-input"
+                  />
+                  <button type="submit" className="category-add-btn">+</button>
+                </form>
+              )}
             </section>
           );
         })}
 
-        {items.length === 0 && (
+        {/* Add Category Section */}
+        <div className="add-category-section">
+          {showAddCategory ? (
+            <form onSubmit={handleAddCategory} className="add-category-form">
+              <input
+                type="text"
+                placeholder="Category name..."
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                className="add-category-input"
+                autoFocus
+              />
+              <button type="submit" className="btn primary">Add</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddCategory(false);
+                  setNewCategoryName('');
+                }}
+                className="btn secondary"
+              >
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <button
+              onClick={() => setShowAddCategory(true)}
+              className="btn secondary add-category-btn"
+            >
+              + Add Category
+            </button>
+          )}
+        </div>
+
+        {items.length === 0 && settings.categories.length === 0 && (
           <div className="empty-state">
-            <p>No items yet. Add your first packing item!</p>
+            <p>No items yet. Add a category to get started!</p>
           </div>
         )}
       </main>
-
-      {(showAddModal || editingItem) && (
-        <AddItemModal
-          item={editingItem}
-          onClose={() => {
-            setShowAddModal(false);
-            setEditingItem(null);
-          }}
-        />
-      )}
     </div>
   );
 }
