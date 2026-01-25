@@ -1,10 +1,11 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
+import Fuse from 'fuse.js';
 import { usePackingList } from '../hooks/usePackingList';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import './PackingList.css';
 
-// Smart categorization mapping
+// Smart categorization mapping with synonyms and variations
 const categoryKeywords = {
   Clothes: [
     'shirt', 'pants', 'jeans', 'shorts', 'dress', 'skirt', 'jacket', 'coat',
@@ -96,29 +97,60 @@ const categoryKeywords = {
   ]
 };
 
-function detectCategory(itemName, existingCategories) {
-  const lowerName = itemName.toLowerCase();
+// Build a flat list of all keywords with their categories for Fuse.js
+const keywordList = Object.entries(categoryKeywords).flatMap(([category, keywords]) =>
+  keywords.map(keyword => ({ keyword, category }))
+);
 
-  // First check existing categories (prioritize user's categories)
-  for (const category of existingCategories) {
-    const keywords = categoryKeywords[category];
-    if (keywords) {
-      for (const keyword of keywords) {
-        if (lowerName.includes(keyword) || keyword.includes(lowerName)) {
-          return { category, isNew: false };
+// Configure Fuse.js for fuzzy matching
+const fuse = new Fuse(keywordList, {
+  keys: ['keyword'],
+  threshold: 0.4, // Lower = stricter matching (0.0 = exact, 1.0 = match anything)
+  distance: 100,  // How far to search for matches within the string
+  minMatchCharLength: 2,
+  includeScore: true,
+});
+
+function detectCategory(itemName, existingCategories) {
+  const lowerName = itemName.toLowerCase().trim();
+
+  // Split input into words to match each word
+  const words = lowerName.split(/\s+/);
+
+  // Try to find a match for the full phrase first
+  let results = fuse.search(lowerName);
+
+  // If no good match for full phrase, try individual words
+  if (results.length === 0 || results[0].score > 0.3) {
+    for (const word of words) {
+      if (word.length >= 2) {
+        const wordResults = fuse.search(word);
+        if (wordResults.length > 0 && (results.length === 0 || wordResults[0].score < results[0].score)) {
+          results = wordResults;
         }
       }
     }
   }
 
-  // Then check all categories for a match
+  // Also check for exact substring matches (handles cases like "3 shirts")
   for (const [category, keywords] of Object.entries(categoryKeywords)) {
     for (const keyword of keywords) {
       if (lowerName.includes(keyword) || keyword.includes(lowerName)) {
         const isNew = !existingCategories.includes(category);
+        // Prioritize existing categories
+        if (existingCategories.includes(category)) {
+          return { category, isNew: false };
+        }
         return { category, isNew };
       }
     }
+  }
+
+  // Use fuzzy match result if found
+  if (results.length > 0 && results[0].score < 0.5) {
+    const category = results[0].item.category;
+    const isNew = !existingCategories.includes(category);
+    return { category, isNew };
   }
 
   // Default to Misc if no match found
