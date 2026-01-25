@@ -316,14 +316,14 @@
 .item {
   display: flex;
   align-items: center;
-  padding: 12px 14px;
-  border-radius: 14px;
-  margin-bottom: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  margin-bottom: 2px;
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
-  background: var(--secondary-bg);
+  background: transparent;
   border: 1px solid transparent;
 }
 
@@ -352,7 +352,7 @@
 .item label {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
   cursor: pointer;
 }
@@ -361,10 +361,10 @@
 .item input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border: 2px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   position: relative;
   background: var(--card-bg);
@@ -383,17 +383,17 @@
 .item input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
-  left: 6px;
-  top: 2px;
-  width: 6px;
-  height: 11px;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
   border: solid white;
-  border-width: 0 2.5px 2.5px 0;
+  border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .item-name {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--text-primary);
   font-weight: 500;
 }
@@ -517,11 +517,11 @@
 /* Drag overlay - the lifted item that follows your finger */
 .item-overlay {
   background: var(--card-bg);
-  border-radius: 14px;
+  border-radius: 10px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 8px 16px rgba(0, 0, 0, 0.1);
-  transform: scale(1.03) rotate(2deg);
+  transform: scale(1.02) rotate(1deg);
   cursor: grabbing;
-  padding: 12px 14px;
+  padding: 8px 10px;
   border: 2px solid var(--primary-color);
   display: flex;
   align-items: center;
@@ -530,18 +530,19 @@
 .item-overlay label {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .item-overlay input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border: 2px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--card-bg);
   flex-shrink: 0;
+  position: relative;
 }
 
 .item-overlay input[type="checkbox"]:checked {
@@ -552,17 +553,17 @@
 .item-overlay input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
-  left: 6px;
-  top: 2px;
-  width: 6px;
-  height: 11px;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
   border: solid white;
-  border-width: 0 2.5px 2.5px 0;
+  border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .item-overlay .item-name {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 500;
 }
 
@@ -588,7 +589,7 @@
   }
 
   .item {
-    padding: 10px 12px;
-    border-radius: 12px;
+    padding: 8px 10px;
+    border-radius: 10px;
   }
 }
