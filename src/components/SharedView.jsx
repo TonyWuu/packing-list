@@ -11,6 +11,7 @@ export default function SharedView({ token }) {
     settings.categories.forEach(cat => {
       groups[cat] = [];
     });
+    groups['Uncategorized'] = [];
 
     items
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -18,8 +19,7 @@ export default function SharedView({ token }) {
         if (groups[item.category]) {
           groups[item.category].push(item);
         } else {
-          if (!groups['Misc']) groups['Misc'] = [];
-          groups['Misc'].push(item);
+          groups['Uncategorized'].push(item);
         }
       });
 
@@ -42,42 +42,53 @@ export default function SharedView({ token }) {
     );
   }
 
+  const allCategories = [...(settings?.categories || [])];
+  if (groupedItems['Uncategorized']?.length > 0) {
+    allCategories.push('Uncategorized');
+  }
+
   return (
     <div className="packing-list">
       <header className="header">
         <div className="header-top">
-          <h1>Shared Packing List</h1>
+          <h1>Shared List</h1>
         </div>
 
-        <div className="progress-bar">
-          <div
-            className="progress-fill"
-            style={{ width: totalCount ? `${(checkedCount / totalCount) * 100}%` : '0%' }}
-          />
+        <div className="progress-section">
+          <div className="progress-bar">
+            <div
+              className="progress-fill"
+              style={{ width: totalCount ? `${(checkedCount / totalCount) * 100}%` : '0%' }}
+            />
+          </div>
+          <span className="progress-text">{checkedCount}/{totalCount}</span>
         </div>
-        <div className="progress-text">{checkedCount} / {totalCount} packed</div>
 
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          This is a read-only view. Changes are made by the list owner.
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: '0 0 8px 0' }}>
+          Read-only view
         </p>
       </header>
 
-      <main className="items-container">
-        {settings?.categories.map(category => {
+      <main className="categories">
+        {allCategories.map(category => {
           const categoryItems = groupedItems[category] || [];
           if (categoryItems.length === 0) return null;
 
           return (
-            <section key={category} className="category-section">
-              <h2 className="category-title">{category}</h2>
-              <ul className="items-list">
+            <section key={category} className="category">
+              <div className="category-header">
+                <h2 className="category-name" style={{ cursor: 'default' }}>
+                  {category}
+                </h2>
+              </div>
+              <ul className="items">
                 {categoryItems.map(item => (
                   <li
                     key={item.id}
                     className={`item ${item.checked ? 'checked' : ''}`}
                     style={{ cursor: 'default' }}
                   >
-                    <label className="item-label" style={{ cursor: 'default' }}>
+                    <label style={{ cursor: 'default' }}>
                       <input
                         type="checkbox"
                         checked={item.checked}
@@ -85,13 +96,6 @@ export default function SharedView({ token }) {
                         style={{ cursor: 'default' }}
                       />
                       <span className="item-name">{item.name}</span>
-                      {item.tripTypes.length > 0 && (
-                        <span className="item-tags">
-                          {item.tripTypes.map(t => (
-                            <span key={t} className="tag">{t}</span>
-                          ))}
-                        </span>
-                      )}
                     </label>
                   </li>
                 ))}
