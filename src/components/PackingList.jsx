@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -6,45 +6,25 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCenter,
   useDroppable,
+  useDraggable,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { usePackingList } from '../hooks/usePackingList';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import './PackingList.css';
 
-function SortableItem({ item, activeId, toggleItem, deleteItem }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+const DraggableItem = memo(function DraggableItem({ item, activeId, toggleItem, deleteItem }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: item.id,
     data: { item, type: 'item' },
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0 : 1,
-    visibility: isDragging ? 'hidden' : 'visible',
-  };
-
   return (
     <li
       ref={setNodeRef}
-      style={style}
       className={`item ${item.checked ? 'checked' : ''}`}
+      style={{ opacity: isDragging ? 0 : 1 }}
       {...listeners}
       {...attributes}
     >
@@ -67,11 +47,9 @@ function SortableItem({ item, activeId, toggleItem, deleteItem }) {
       </button>
     </li>
   );
-}
+});
 
 function CategorySection({ category, items, isUncategorized, isDragOver, isEditing, isCollapsed, onToggleCollapse, editingCategoryName, setEditingCategoryName, handleRenameCategory, startEditingCategory, handleDeleteCategory, handleCategoryAdd, categoryInputs, setCategoryInputs, activeId, toggleItem, deleteItem, setEditingCategory }) {
-  const itemIds = items.map(item => item.id);
-
   const { setNodeRef: setDroppableRef } = useDroppable({
     id: `category-${category}`,
     data: { category, type: 'category' },
@@ -130,19 +108,17 @@ function CategorySection({ category, items, isUncategorized, isDragOver, isEditi
         </div>
       </div>
 
-      <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-        <ul className="items" ref={setDroppableRef}>
-          {items.map(item => (
-            <SortableItem
-              key={item.id}
-              item={item}
-              activeId={activeId}
-              toggleItem={toggleItem}
-              deleteItem={deleteItem}
-            />
-          ))}
-        </ul>
-      </SortableContext>
+      <ul className="items" ref={setDroppableRef}>
+        {items.map(item => (
+          <DraggableItem
+            key={item.id}
+            item={item}
+            activeId={activeId}
+            toggleItem={toggleItem}
+            deleteItem={deleteItem}
+          />
+        ))}
+      </ul>
 
       {!isUncategorized && (
         <form
@@ -193,14 +169,14 @@ export default function PackingList() {
 
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
-      delay: 150,
+      delay: 100,
       tolerance: 5,
     },
   });
 
   const pointerSensor = useSensor(PointerSensor, {
     activationConstraint: {
-      distance: 5,
+      distance: 3,
     },
   });
 
@@ -454,7 +430,6 @@ export default function PackingList() {
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
