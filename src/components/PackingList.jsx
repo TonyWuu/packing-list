@@ -370,12 +370,12 @@ export default function PackingList() {
     setLocalItems(null);
   };
 
-  const handleCategoryAdd = async (category, e) => {
+  const handleCategoryAdd = (category, e) => {
     e.preventDefault();
     const value = categoryInputs[category];
     if (!value?.trim()) return;
-    await addItem(value.trim(), category, []);
     setCategoryInputs(prev => ({ ...prev, [category]: '' }));
+    addItem(value.trim(), category, []);
   };
 
   const handleAddCategory = async (e) => {
