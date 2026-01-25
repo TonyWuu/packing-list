@@ -7,6 +7,7 @@ import {
   useSensor,
   useSensors,
   closestCenter,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -71,6 +72,11 @@ function SortableItem({ item, activeId, toggleItem, deleteItem }) {
 function CategorySection({ category, items, isUncategorized, isDragOver, isEditing, editingCategoryName, setEditingCategoryName, handleRenameCategory, startEditingCategory, handleDeleteCategory, handleCategoryAdd, categoryInputs, setCategoryInputs, activeId, toggleItem, deleteItem, setEditingCategory }) {
   const itemIds = items.map(item => item.id);
 
+  const { setNodeRef: setDroppableRef } = useDroppable({
+    id: `category-${category}`,
+    data: { category, type: 'category' },
+  });
+
   return (
     <section className={`category ${isDragOver ? 'drag-over' : ''}`} data-category={category}>
       <div className="category-header">
@@ -109,7 +115,10 @@ function CategorySection({ category, items, isUncategorized, isDragOver, isEditi
       </div>
 
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-        <ul className="items">
+        <ul className="items" ref={setDroppableRef}>
+          {items.length === 0 && (
+            <li className="empty-category-placeholder">Drop items here</li>
+          )}
           {items.map(item => (
             <SortableItem
               key={item.id}
@@ -235,7 +244,11 @@ export default function PackingList() {
     let targetCategory = null;
     let overItemId = null;
 
-    if (overData?.item) {
+    if (overData?.type === 'category') {
+      // Hovering over empty category area
+      targetCategory = overData.category;
+    } else if (overData?.item) {
+      // Hovering over an item
       targetCategory = overData.item.category;
       overItemId = over.id;
     }
@@ -259,8 +272,8 @@ export default function PackingList() {
     // Check if we need to move
     const overIndex = overItemId ? localItems.findIndex(i => i.id === overItemId) : -1;
 
-    // Only update if actually changing position
-    if (currentCategory === targetCategory && overIndex === activeIndex) return;
+    // Only update if actually changing position or category
+    if (currentCategory === targetCategory && (overIndex === -1 || overIndex === activeIndex)) return;
 
     // Create new items array with the move applied
     const newItems = localItems.map(item => ({ ...item })); // Deep copy
@@ -273,13 +286,19 @@ export default function PackingList() {
       const adjustedIndex = overIndex > activeIndex ? overIndex - 1 : overIndex;
       newItems.splice(adjustedIndex, 0, movedItem);
     } else {
-      // Add to end of category
+      // Add to end of category (for empty categories or dropping on category itself)
       let insertIndex = newItems.length;
+      let foundCategory = false;
       for (let i = newItems.length - 1; i >= 0; i--) {
         if (newItems[i].category === targetCategory) {
           insertIndex = i + 1;
+          foundCategory = true;
           break;
         }
+      }
+      // If category is empty, just push to the end
+      if (!foundCategory) {
+        insertIndex = newItems.length;
       }
       newItems.splice(insertIndex, 0, movedItem);
     }
