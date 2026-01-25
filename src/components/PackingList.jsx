@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import Fuse from 'fuse.js';
 import { usePackingList } from '../hooks/usePackingList';
 import { useAuth } from '../contexts/AuthContext';
@@ -237,32 +237,38 @@ function CategorySection({
       </div>
 
       <ul className="items">
-        {items.map(item => (
-          <li
-            key={item.id}
-            className={`item ${item.checked ? 'checked' : ''} ${draggedItem?.id === item.id ? 'dragging' : ''}`}
-            onTouchStart={(e) => onDragStart(e, item)}
-            onMouseDown={(e) => onDragStart(e, item)}
-          >
-            <label onClick={(e) => e.stopPropagation()}>
-              <input
-                type="checkbox"
-                checked={item.checked}
-                onChange={() => toggleItem(item.id)}
-              />
-              <span className="item-name">{item.name}</span>
-            </label>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteItem(item.id);
-              }}
-              className="item-delete"
-            >
-              ×
-            </button>
+        {items.length === 0 ? (
+          <li className="empty-category">
+            No items yet — add some using the field below
           </li>
-        ))}
+        ) : (
+          items.map(item => (
+            <li
+              key={item.id}
+              className={`item ${item.checked ? 'checked' : ''} ${draggedItem?.id === item.id ? 'dragging' : ''}`}
+              onTouchStart={(e) => onDragStart(e, item)}
+              onMouseDown={(e) => onDragStart(e, item)}
+            >
+              <label onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={() => toggleItem(item.id)}
+                />
+                <span className="item-name">{item.name}</span>
+              </label>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteItem(item.id);
+                }}
+                className="item-delete"
+              >
+                ×
+              </button>
+            </li>
+          ))
+        )}
       </ul>
 
       {!isUncategorized && (
@@ -309,6 +315,10 @@ export default function PackingList() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [collapsedCategories, setCollapsedCategories] = useState({});
+
+  // Celebration state
+  const [showCelebration, setShowCelebration] = useState(false);
+  const prevAllChecked = useRef(false);
 
   // Drag state
   const [draggedItem, setDraggedItem] = useState(null);
@@ -565,6 +575,18 @@ export default function PackingList() {
 
   const checkedCount = items.filter(i => i.checked).length;
   const totalCount = items.length;
+  const allPacked = totalCount > 0 && checkedCount === totalCount;
+
+  // Show celebration when all items become checked
+  useEffect(() => {
+    if (allPacked && !prevAllChecked.current) {
+      setShowCelebration(true);
+      // Auto-hide after 5 seconds
+      const timer = setTimeout(() => setShowCelebration(false), 5000);
+      return () => clearTimeout(timer);
+    }
+    prevAllChecked.current = allPacked;
+  }, [allPacked]);
 
   if (loading) {
     return <div className="loading">Loading...</div>;
@@ -689,6 +711,29 @@ export default function PackingList() {
           }}
         >
           <span className="item-name">{draggedItem.name}</span>
+        </div>
+      )}
+
+      {/* Celebration overlay */}
+      {showCelebration && (
+        <div className="celebration-overlay" onClick={() => setShowCelebration(false)}>
+          <div className="celebration-content">
+            <div className="celebration-icon">✓</div>
+            <h2>All Packed!</h2>
+            <p>You're ready for your trip</p>
+            <button className="celebration-dismiss" onClick={() => setShowCelebration(false)}>
+              Let's Go!
+            </button>
+          </div>
+          <div className="confetti">
+            {[...Array(50)].map((_, i) => (
+              <div key={i} className="confetti-piece" style={{
+                '--delay': `${Math.random() * 3}s`,
+                '--x': `${Math.random() * 100}vw`,
+                '--color': ['#6366f1', '#ec4899', '#10b981', '#f97316', '#8b5cf6'][Math.floor(Math.random() * 5)]
+              }} />
+            ))}
+          </div>
         </div>
       )}
     </div>
