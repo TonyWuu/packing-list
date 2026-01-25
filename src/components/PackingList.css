@@ -301,7 +301,7 @@
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: none;
+  touch-action: pan-y;
   background: transparent;
   border-bottom: 1px solid var(--border-color);
   min-height: 28px;
