@@ -178,17 +178,33 @@ function CategorySection({
   setEditingCategory,
   onDragStart,
   draggedItem,
+  onCategoryDragStart,
+  draggedCategory,
 }) {
   const checkedCount = items.filter(i => i.checked).length;
   const isDropTarget = draggedItem && draggedItem.category !== category;
+  const isCategoryDropTarget = draggedCategory && draggedCategory !== category && !isUncategorized;
+  const isCategoryDragging = draggedCategory === category;
 
   return (
     <section
-      className={`category ${isCollapsed ? 'collapsed' : ''} ${isDropTarget ? 'drag-over' : ''}`}
+      className={`category ${isCollapsed ? 'collapsed' : ''} ${isDropTarget ? 'drag-over' : ''} ${isCategoryDropTarget ? 'category-drop-target' : ''} ${isCategoryDragging ? 'category-dragging' : ''}`}
       data-category={category}
     >
       <div className="category-header">
         <div className="category-header-left">
+          {!isUncategorized && (
+            <div
+              className="category-drag-handle"
+              onTouchStart={(e) => onCategoryDragStart(e, category)}
+              onMouseDown={(e) => onCategoryDragStart(e, category)}
+              title="Drag to reorder"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+              </svg>
+            </div>
+          )}
           <button
             className="collapse-toggle"
             onClick={onToggleCollapse}
@@ -320,12 +336,18 @@ export default function PackingList() {
   const [showCelebration, setShowCelebration] = useState(false);
   const prevAllChecked = useRef(false);
 
-  // Drag state
+  // Item drag state
   const [draggedItem, setDraggedItem] = useState(null);
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
   const dragTimeout = useRef(null);
   const isDragging = useRef(false);
   const justDragged = useRef(false);
+
+  // Category drag state
+  const [draggedCategory, setDraggedCategory] = useState(null);
+  const [categoryDragPos, setCategoryDragPos] = useState({ x: 0, y: 0 });
+  const categoryDragTimeout = useRef(null);
+  const isCategoryDragging = useRef(false);
 
   // Group items by category, sorted by order
   const groupedItems = useMemo(() => {
@@ -473,6 +495,119 @@ export default function PackingList() {
     if (justDragged.current) return;
     toggleItem(itemId);
   }, [toggleItem]);
+
+  // Category drag handler
+  const handleCategoryDragStart = useCallback((e, category) => {
+    // Ignore if it's not the drag handle
+    if (!e.target.closest('.category-drag-handle')) return;
+
+    if (e.touches) {
+      const touch = e.touches[0];
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+      let lastTouchPos = { x: startX, y: startY };
+
+      const handleTouchMove = (moveEvent) => {
+        const t = moveEvent.touches[0];
+        lastTouchPos = { x: t.clientX, y: t.clientY };
+
+        if (!isCategoryDragging.current) {
+          clearTimeout(categoryDragTimeout.current);
+          document.removeEventListener('touchmove', handleTouchMove);
+          document.removeEventListener('touchend', handleTouchEnd);
+          return;
+        }
+        setCategoryDragPos({ x: t.clientX, y: t.clientY });
+      };
+
+      const handleTouchEnd = () => {
+        clearTimeout(categoryDragTimeout.current);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+        document.body.style.touchAction = '';
+        document.body.style.overflow = '';
+
+        if (isCategoryDragging.current) {
+          // Find the target category
+          const elementUnder = document.elementFromPoint(lastTouchPos.x, lastTouchPos.y);
+          const categorySection = elementUnder?.closest('[data-category]');
+          const targetCategory = categorySection?.dataset.category;
+
+          if (targetCategory && targetCategory !== category && targetCategory !== 'Uncategorized') {
+            // Reorder categories
+            const oldIndex = settings.categories.indexOf(category);
+            const newIndex = settings.categories.indexOf(targetCategory);
+            if (oldIndex !== -1 && newIndex !== -1) {
+              const newCategories = [...settings.categories];
+              newCategories.splice(oldIndex, 1);
+              newCategories.splice(newIndex, 0, category);
+              updateSettings({ ...settings, categories: newCategories });
+            }
+          }
+
+          isCategoryDragging.current = false;
+          setTimeout(() => setDraggedCategory(null), 100);
+        }
+      };
+
+      categoryDragTimeout.current = setTimeout(() => {
+        isCategoryDragging.current = true;
+        setDraggedCategory(category);
+        setCategoryDragPos({ x: lastTouchPos.x, y: lastTouchPos.y });
+        if (navigator.vibrate) navigator.vibrate(30);
+        document.body.style.touchAction = 'none';
+        document.body.style.overflow = 'hidden';
+      }, 300);
+
+      document.addEventListener('touchmove', handleTouchMove, { passive: true });
+      document.addEventListener('touchend', handleTouchEnd);
+      return;
+    }
+
+    // Mouse handling
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+
+    const handleMouseMove = (moveEvent) => {
+      if (!isCategoryDragging.current) return;
+      setCategoryDragPos({ x: moveEvent.clientX, y: moveEvent.clientY });
+    };
+
+    const handleMouseUp = (upEvent) => {
+      clearTimeout(categoryDragTimeout.current);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+
+      if (isCategoryDragging.current) {
+        const elementUnder = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
+        const categorySection = elementUnder?.closest('[data-category]');
+        const targetCategory = categorySection?.dataset.category;
+
+        if (targetCategory && targetCategory !== category && targetCategory !== 'Uncategorized') {
+          const oldIndex = settings.categories.indexOf(category);
+          const newIndex = settings.categories.indexOf(targetCategory);
+          if (oldIndex !== -1 && newIndex !== -1) {
+            const newCategories = [...settings.categories];
+            newCategories.splice(oldIndex, 1);
+            newCategories.splice(newIndex, 0, category);
+            updateSettings({ ...settings, categories: newCategories });
+          }
+        }
+
+        isCategoryDragging.current = false;
+        setTimeout(() => setDraggedCategory(null), 100);
+      }
+    };
+
+    categoryDragTimeout.current = setTimeout(() => {
+      isCategoryDragging.current = true;
+      setDraggedCategory(category);
+      setCategoryDragPos({ x: clientX, y: clientY });
+    }, 150);
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [settings, updateSettings]);
 
   const handleQuickAdd = async (e) => {
     e.preventDefault();
@@ -696,12 +831,14 @@ export default function PackingList() {
               setEditingCategory={setEditingCategory}
               onDragStart={handleDragStart}
               draggedItem={draggedItem}
+              onCategoryDragStart={handleCategoryDragStart}
+              draggedCategory={draggedCategory}
             />
           );
         })}
       </main>
 
-      {/* Floating drag overlay */}
+      {/* Floating drag overlay for items */}
       {draggedItem && (
         <div
           className="drag-overlay"
@@ -711,6 +848,19 @@ export default function PackingList() {
           }}
         >
           <span className="item-name">{draggedItem.name}</span>
+        </div>
+      )}
+
+      {/* Floating drag overlay for categories */}
+      {draggedCategory && (
+        <div
+          className="drag-overlay category-drag-overlay"
+          style={{
+            left: categoryDragPos.x,
+            top: categoryDragPos.y,
+          }}
+        >
+          <span className="category-drag-name">{draggedCategory}</span>
         </div>
       )}
 

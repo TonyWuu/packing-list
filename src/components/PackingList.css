@@ -168,6 +168,55 @@
   border-bottom: none;
 }
 
+.category-drag-handle {
+  cursor: grab;
+  padding: 4px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  opacity: 0.5;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.category:hover .category-drag-handle {
+  opacity: 1;
+}
+
+.category-drag-handle:hover {
+  color: var(--primary-color);
+  background: var(--hover-bg);
+}
+
+.category-drag-handle:active {
+  cursor: grabbing;
+}
+
+.category.category-dragging {
+  opacity: 0.4;
+}
+
+.category.category-drop-target {
+  border-color: var(--primary-color);
+  box-shadow: var(--card-shadow-hover), 0 0 0 3px var(--primary-glow);
+}
+
+.category-drag-overlay {
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-purple));
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 10px 20px;
+  border-radius: 12px;
+}
+
+.category-drag-name {
+  white-space: nowrap;
+}
+
 .collapse-toggle {
   background: none;
   border: none;
