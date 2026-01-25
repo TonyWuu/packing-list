@@ -195,53 +195,76 @@ export default function PackingList() {
       return;
     }
 
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const startX = clientX;
-    const startY = clientY;
+    // Only handle mouse events here, not touch (let touch scroll naturally)
+    if (e.touches) {
+      // For touch, we use a different approach - only start tracking after long press
+      const touch = e.touches[0];
+      const startX = touch.clientX;
+      const startY = touch.clientY;
 
-    // Start drag after a longer delay (to allow scrolling)
-    dragTimeout.current = setTimeout(() => {
-      isDragging.current = true;
-      setDraggedItem(item);
-      setDragPos({ x: clientX, y: clientY });
-      if (navigator.vibrate) navigator.vibrate(30);
-    }, 350);
-
-    const handleMove = (moveEvent) => {
-      const x = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX;
-      const y = moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY;
-
-      // If not dragging yet, check if user moved too much (they want to scroll)
-      if (!isDragging.current) {
-        const distance = Math.sqrt((x - startX) ** 2 + (y - startY) ** 2);
-        if (distance > 10) {
-          // User is scrolling, cancel the drag
+      const handleTouchMove = (moveEvent) => {
+        // If drag hasn't started yet, cancel the timeout (user is scrolling)
+        if (!isDragging.current) {
           clearTimeout(dragTimeout.current);
-          document.removeEventListener('touchmove', handleMove);
-          document.removeEventListener('touchend', handleEnd);
-          document.removeEventListener('mousemove', handleMove);
-          document.removeEventListener('mouseup', handleEnd);
+          document.removeEventListener('touchmove', handleTouchMove);
+          document.removeEventListener('touchend', handleTouchEnd);
+          return;
         }
-        return;
-      }
+        // If dragging, update position
+        moveEvent.preventDefault();
+        const t = moveEvent.touches[0];
+        setDragPos({ x: t.clientX, y: t.clientY });
+      };
 
-      moveEvent.preventDefault();
-      setDragPos({ x, y });
+      const handleTouchEnd = () => {
+        clearTimeout(dragTimeout.current);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+
+        if (isDragging.current) {
+          justDragged.current = true;
+          isDragging.current = false;
+          setTimeout(() => {
+            justDragged.current = false;
+            setDraggedItem(null);
+          }, 100);
+        }
+      };
+
+      // Start drag after hold - but use passive listener so scroll works
+      dragTimeout.current = setTimeout(() => {
+        isDragging.current = true;
+        setDraggedItem(item);
+        setDragPos({ x: startX, y: startY });
+        if (navigator.vibrate) navigator.vibrate(30);
+        // Now switch to non-passive to prevent scroll while dragging
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      }, 400);
+
+      // Use passive listener initially to allow scroll
+      document.addEventListener('touchmove', handleTouchMove, { passive: true });
+      document.addEventListener('touchend', handleTouchEnd);
+      return;
+    }
+
+    // Mouse handling (desktop)
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+
+    const handleMouseMove = (moveEvent) => {
+      if (!isDragging.current) return;
+      setDragPos({ x: moveEvent.clientX, y: moveEvent.clientY });
     };
 
-    const handleEnd = () => {
+    const handleMouseUp = () => {
       clearTimeout(dragTimeout.current);
-      const wasDragging = isDragging.current;
-      isDragging.current = false;
-      document.removeEventListener('touchmove', handleMove);
-      document.removeEventListener('touchend', handleEnd);
-      document.removeEventListener('mousemove', handleMove);
-      document.removeEventListener('mouseup', handleEnd);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
 
-      // Prevent checkbox toggle after drag
-      if (wasDragging) {
+      if (isDragging.current) {
         justDragged.current = true;
+        isDragging.current = false;
         setTimeout(() => {
           justDragged.current = false;
           setDraggedItem(null);
@@ -249,10 +272,14 @@ export default function PackingList() {
       }
     };
 
-    document.addEventListener('touchmove', handleMove, { passive: false });
-    document.addEventListener('touchend', handleEnd);
-    document.addEventListener('mousemove', handleMove);
-    document.addEventListener('mouseup', handleEnd);
+    dragTimeout.current = setTimeout(() => {
+      isDragging.current = true;
+      setDraggedItem(item);
+      setDragPos({ x: clientX, y: clientY });
+    }, 200);
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   }, []);
 
   const handleDrop = useCallback(async (targetCategory) => {
