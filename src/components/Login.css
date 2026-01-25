@@ -133,3 +133,11 @@
 .back-link:hover {
   color: var(--primary-color);
 }
+
+.copy-btn {
+  gap: 8px;
+}
+
+.copy-btn svg {
+  flex-shrink: 0;
+}

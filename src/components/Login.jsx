@@ -13,6 +13,7 @@ const isIOSStandalone = () => {
 export default function Login() {
   const { login, error } = useAuth();
   const [showPWAHelp, setShowPWAHelp] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleLogin = async () => {
     // For iOS standalone PWA, show help message
@@ -28,11 +29,23 @@ export default function Login() {
     }
   };
 
-  const openInSafari = () => {
-    // Copy current URL and instruct user to open in Safari
-    const url = window.location.href;
-    navigator.clipboard?.writeText(url);
-    window.open(url, '_blank');
+  const copyUrl = async () => {
+    const url = window.location.origin + window.location.pathname;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = url;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (
@@ -51,15 +64,30 @@ export default function Login() {
           <div className="pwa-help">
             <p className="pwa-help-title">Sign in via Safari</p>
             <p className="pwa-help-text">
-              To sign in from the app, you'll need to open Safari first:
+              To sign in, please open this app in Safari:
             </p>
             <ol className="pwa-help-steps">
-              <li>Tap the button below to open Safari</li>
-              <li>Sign in with Google in Safari</li>
+              <li>Copy the link below</li>
+              <li>Open <strong>Safari</strong> and paste the link</li>
+              <li>Sign in with Google</li>
               <li>Return to this app - you'll be signed in!</li>
             </ol>
-            <button onClick={openInSafari} className="google-btn">
-              Open in Safari
+            <button onClick={copyUrl} className="google-btn copy-btn">
+              {copied ? (
+                <>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                  </svg>
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                  </svg>
+                  Copy Link
+                </>
+              )}
             </button>
             <button onClick={() => setShowPWAHelp(false)} className="back-link">
               Back
