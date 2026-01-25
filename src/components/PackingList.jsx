@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { usePackingList } from '../hooks/usePackingList';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -29,6 +29,11 @@ export default function PackingList() {
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [draggedItem, setDraggedItem] = useState(null);
   const [dragOverCategory, setDragOverCategory] = useState(null);
+  const [touchDragging, setTouchDragging] = useState(false);
+
+  const categoryRefs = useRef({});
+  const touchStartPos = useRef(null);
+  const draggedElement = useRef(null);
 
   // Group items by category
   const groupedItems = useMemo(() => {
@@ -95,13 +100,11 @@ export default function PackingList() {
       return;
     }
 
-    // Update category name in settings
     const newCategories = settings.categories.map(c =>
       c === oldName ? editingCategoryName.trim() : c
     );
     await updateSettings({ ...settings, categories: newCategories });
 
-    // Update all items in this category
     const itemsToUpdate = items.filter(item => item.category === oldName);
     for (const item of itemsToUpdate) {
       await updateItem(item.id, { category: editingCategoryName.trim() });
@@ -115,7 +118,7 @@ export default function PackingList() {
     setEditingCategoryName(category);
   };
 
-  // Drag and drop handlers
+  // Desktop drag handlers
   const handleDragStart = (e, item) => {
     setDraggedItem(item);
     e.dataTransfer.effectAllowed = 'move';
@@ -145,6 +148,64 @@ export default function PackingList() {
     setDragOverCategory(null);
   };
 
+  // Touch drag handlers for mobile
+  const handleTouchStart = useCallback((e, item) => {
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    draggedElement.current = e.currentTarget;
+
+    // Delay to distinguish from scroll
+    const timeout = setTimeout(() => {
+      setDraggedItem(item);
+      setTouchDragging(true);
+      if (draggedElement.current) {
+        draggedElement.current.classList.add('touch-dragging');
+      }
+    }, 200);
+
+    e.currentTarget.dataset.touchTimeout = timeout;
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!touchDragging || !draggedItem) return;
+
+    const touch = e.touches[0];
+    const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
+
+    let foundCategory = null;
+    for (const el of elements) {
+      if (el.dataset.category) {
+        foundCategory = el.dataset.category;
+        break;
+      }
+    }
+
+    setDragOverCategory(foundCategory);
+  }, [touchDragging, draggedItem]);
+
+  const handleTouchEnd = useCallback(async (e) => {
+    // Clear the timeout if touch ended quickly
+    if (e.currentTarget?.dataset?.touchTimeout) {
+      clearTimeout(parseInt(e.currentTarget.dataset.touchTimeout));
+    }
+
+    if (draggedElement.current) {
+      draggedElement.current.classList.remove('touch-dragging');
+    }
+
+    if (touchDragging && draggedItem && dragOverCategory) {
+      if (draggedItem.category !== dragOverCategory) {
+        await updateItem(draggedItem.id, { category: dragOverCategory });
+      }
+    }
+
+    setDraggedItem(null);
+    setDragOverCategory(null);
+    setTouchDragging(false);
+    touchStartPos.current = null;
+    draggedElement.current = null;
+  }, [touchDragging, draggedItem, dragOverCategory, updateItem]);
+
   const handleShare = async () => {
     if (shareToken) {
       await navigator.clipboard.writeText(
@@ -173,7 +234,7 @@ export default function PackingList() {
   }
 
   return (
-    <div className="packing-list">
+    <div className="packing-list" onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       <header className="header">
         <div className="header-top">
           <h1>Packing List</h1>
@@ -238,6 +299,8 @@ export default function PackingList() {
           return (
             <section
               key={category}
+              ref={el => categoryRefs.current[category] = el}
+              data-category={category}
               className={`category ${isDragOver ? 'drag-over' : ''}`}
               onDragOver={(e) => handleDragOver(e, category)}
               onDragLeave={handleDragLeave}
@@ -282,10 +345,11 @@ export default function PackingList() {
                 {categoryItems.map(item => (
                   <li
                     key={item.id}
-                    className={`item ${item.checked ? 'checked' : ''}`}
+                    className={`item ${item.checked ? 'checked' : ''} ${draggedItem?.id === item.id ? 'dragging' : ''}`}
                     draggable
                     onDragStart={(e) => handleDragStart(e, item)}
                     onDragEnd={handleDragEnd}
+                    onTouchStart={(e) => handleTouchStart(e, item)}
                   >
                     <span className="drag-handle">⋮⋮</span>
                     <label>
@@ -338,6 +402,12 @@ export default function PackingList() {
           </button>
         </form>
       </main>
+
+      {touchDragging && draggedItem && (
+        <div className="touch-drag-indicator">
+          Moving: {draggedItem.name}
+        </div>
+      )}
     </div>
   );
 }

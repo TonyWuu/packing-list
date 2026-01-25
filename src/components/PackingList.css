@@ -410,6 +410,44 @@
   color: var(--text-secondary);
 }
 
+/* Touch drag indicator */
+.touch-drag-indicator {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary-color);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.item.touch-dragging {
+  opacity: 0.5;
+  background: var(--primary-color);
+  color: white;
+}
+
+.item.dragging {
+  opacity: 0.5;
+}
+
 /* Mobile */
 @media (max-width: 480px) {
   .packing-list {
@@ -420,5 +458,9 @@
   .category-delete,
   .drag-handle {
     opacity: 1;
+  }
+
+  .item {
+    touch-action: pan-y;
   }
 }
