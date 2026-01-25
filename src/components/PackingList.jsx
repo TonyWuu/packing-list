@@ -1,64 +1,41 @@
-import { useState, useMemo, memo } from 'react';
-import {
-  DndContext,
-  DragOverlay,
-  TouchSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  useDroppable,
-  useDraggable,
-} from '@dnd-kit/core';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { usePackingList } from '../hooks/usePackingList';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import './PackingList.css';
 
-const DraggableItem = memo(function DraggableItem({ item, activeId, toggleItem, deleteItem }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: item.id,
-    data: { item, type: 'item' },
-  });
-
-  return (
-    <li
-      ref={setNodeRef}
-      className={`item ${item.checked ? 'checked' : ''}`}
-      style={{ opacity: isDragging ? 0 : 1 }}
-      {...listeners}
-      {...attributes}
-    >
-      <label onClick={(e) => e.stopPropagation()}>
-        <input
-          type="checkbox"
-          checked={item.checked}
-          onChange={() => toggleItem(item.id)}
-        />
-        <span className="item-name">{item.name}</span>
-      </label>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          deleteItem(item.id);
-        }}
-        className="item-delete"
-      >
-        ×
-      </button>
-    </li>
-  );
-});
-
-function CategorySection({ category, items, isUncategorized, isDragOver, isEditing, isCollapsed, onToggleCollapse, editingCategoryName, setEditingCategoryName, handleRenameCategory, startEditingCategory, handleDeleteCategory, handleCategoryAdd, categoryInputs, setCategoryInputs, activeId, toggleItem, deleteItem, setEditingCategory }) {
-  const { setNodeRef: setDroppableRef } = useDroppable({
-    id: `category-${category}`,
-    data: { category, type: 'category' },
-  });
-
+function CategorySection({
+  category,
+  items,
+  isUncategorized,
+  isEditing,
+  isCollapsed,
+  onToggleCollapse,
+  editingCategoryName,
+  setEditingCategoryName,
+  handleRenameCategory,
+  startEditingCategory,
+  handleDeleteCategory,
+  handleCategoryAdd,
+  categoryInputs,
+  setCategoryInputs,
+  toggleItem,
+  deleteItem,
+  setEditingCategory,
+  onDragStart,
+  draggedItem,
+  onDrop,
+}) {
   const checkedCount = items.filter(i => i.checked).length;
+  const isDropTarget = draggedItem && draggedItem.category !== category;
 
   return (
-    <section className={`category ${isDragOver ? 'drag-over' : ''} ${isCollapsed ? 'collapsed' : ''}`} data-category={category}>
+    <section
+      className={`category ${isCollapsed ? 'collapsed' : ''} ${isDropTarget ? 'drag-over' : ''}`}
+      data-category={category}
+      onTouchEnd={() => draggedItem && onDrop(category)}
+      onMouseUp={() => draggedItem && onDrop(category)}
+    >
       <div className="category-header">
         <div className="category-header-left">
           <button
@@ -108,15 +85,32 @@ function CategorySection({ category, items, isUncategorized, isDragOver, isEditi
         </div>
       </div>
 
-      <ul className="items" ref={setDroppableRef}>
+      <ul className="items">
         {items.map(item => (
-          <DraggableItem
+          <li
             key={item.id}
-            item={item}
-            activeId={activeId}
-            toggleItem={toggleItem}
-            deleteItem={deleteItem}
-          />
+            className={`item ${item.checked ? 'checked' : ''} ${draggedItem?.id === item.id ? 'dragging' : ''}`}
+            onTouchStart={(e) => onDragStart(e, item)}
+            onMouseDown={(e) => onDragStart(e, item)}
+          >
+            <label onClick={(e) => e.stopPropagation()}>
+              <input
+                type="checkbox"
+                checked={item.checked}
+                onChange={() => toggleItem(item.id)}
+              />
+              <span className="item-name">{item.name}</span>
+            </label>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteItem(item.id);
+              }}
+              className="item-delete"
+            >
+              ×
+            </button>
+          </li>
         ))}
       </ul>
 
@@ -163,24 +157,12 @@ export default function PackingList() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [collapsedCategories, setCollapsedCategories] = useState({});
-  const [activeId, setActiveId] = useState(null);
-  const [activeItem, setActiveItem] = useState(null);
-  const [overCategory, setOverCategory] = useState(null);
 
-  const touchSensor = useSensor(TouchSensor, {
-    activationConstraint: {
-      delay: 100,
-      tolerance: 5,
-    },
-  });
-
-  const pointerSensor = useSensor(PointerSensor, {
-    activationConstraint: {
-      distance: 3,
-    },
-  });
-
-  const sensors = useSensors(touchSensor, pointerSensor);
+  // Drag state
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+  const dragTimeout = useRef(null);
+  const isDragging = useRef(false);
 
   // Group items by category, sorted by order
   const groupedItems = useMemo(() => {
@@ -206,87 +188,55 @@ export default function PackingList() {
     return groups;
   }, [items, settings.categories]);
 
-  const handleDragStart = (event) => {
-    const { active } = event;
-    setActiveId(active.id);
-    setActiveItem(active.data.current.item);
-  };
-
-  const handleDragOver = (event) => {
-    const { over } = event;
-    if (!over) {
-      setOverCategory(null);
+  const handleDragStart = useCallback((e, item) => {
+    // Ignore if clicking on checkbox or delete button
+    if (e.target.type === 'checkbox' || e.target.classList.contains('item-delete')) {
       return;
     }
 
-    const overData = over.data.current;
-    if (overData?.type === 'category') {
-      setOverCategory(overData.category);
-    } else if (overData?.item) {
-      setOverCategory(overData.item.category);
-    }
-  };
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-  const handleDragEnd = async (event) => {
-    const { active, over } = event;
+    // Start drag after a short delay (to distinguish from tap)
+    dragTimeout.current = setTimeout(() => {
+      isDragging.current = true;
+      setDraggedItem(item);
+      setDragPos({ x: clientX, y: clientY });
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, 150);
 
-    if (!active.data.current?.item || !over) {
-      setActiveId(null);
-      setActiveItem(null);
-      setOverCategory(null);
-      return;
-    }
+    const handleMove = (moveEvent) => {
+      if (!isDragging.current) return;
+      moveEvent.preventDefault();
+      const x = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX;
+      const y = moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY;
+      setDragPos({ x, y });
+    };
 
-    const draggedItem = active.data.current.item;
-    const overData = over.data.current;
+    const handleEnd = () => {
+      clearTimeout(dragTimeout.current);
+      isDragging.current = false;
+      document.removeEventListener('touchmove', handleMove);
+      document.removeEventListener('touchend', handleEnd);
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleEnd);
 
-    let targetCategory = draggedItem.category;
-    let targetIndex = -1;
+      // Small delay to let the drop handler run first
+      setTimeout(() => setDraggedItem(null), 50);
+    };
 
-    if (overData?.type === 'category') {
-      targetCategory = overData.category;
-    } else if (overData?.item) {
-      targetCategory = overData.item.category;
-      // Find the index of the item we're dropping on
-      const categoryItems = items.filter(i => i.category === targetCategory);
-      targetIndex = categoryItems.findIndex(i => i.id === over.id);
-    }
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+  }, []);
 
-    // If category changed or position changed, update
-    if (targetCategory !== draggedItem.category) {
-      // Move to new category
-      await updateItem(draggedItem.id, { category: targetCategory });
+  const handleDrop = useCallback(async (targetCategory) => {
+    if (!draggedItem || draggedItem.category === targetCategory) return;
 
-      // Reorder in new category
-      const newCategoryItems = items
-        .filter(i => i.category === targetCategory && i.id !== draggedItem.id);
-      if (targetIndex >= 0) {
-        newCategoryItems.splice(targetIndex, 0, draggedItem);
-      } else {
-        newCategoryItems.push(draggedItem);
-      }
-      await reorderItems(newCategoryItems.map(i => i.id), targetCategory);
-    } else if (targetIndex >= 0) {
-      // Same category, just reorder
-      const categoryItems = items.filter(i => i.category === targetCategory);
-      const currentIndex = categoryItems.findIndex(i => i.id === draggedItem.id);
-      if (currentIndex !== targetIndex) {
-        const newOrder = categoryItems.filter(i => i.id !== draggedItem.id);
-        newOrder.splice(targetIndex, 0, draggedItem);
-        await reorderItems(newOrder.map(i => i.id), targetCategory);
-      }
-    }
-
-    setActiveId(null);
-    setActiveItem(null);
-    setOverCategory(null);
-  };
-
-  const handleDragCancel = () => {
-    setActiveId(null);
-    setActiveItem(null);
-    setOverCategory(null);
-  };
+    // Move item to new category
+    await updateItem(draggedItem.id, { category: targetCategory });
+  }, [draggedItem, updateItem]);
 
   const handleCategoryAdd = (category, e) => {
     e.preventDefault();
@@ -428,62 +378,56 @@ export default function PackingList() {
         </form>
       </header>
 
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
-      >
-        <main className="categories">
-          {allCategories.map(category => {
-            const categoryItems = groupedItems[category] || [];
-            const isUncategorized = category === 'Uncategorized';
-            const isDragOver = overCategory === category;
-            const isEditing = editingCategory === category;
-            const isCollapsed = collapsedCategories[category] || false;
+      <main className="categories">
+        {allCategories.map(category => {
+          const categoryItems = groupedItems[category] || [];
+          const isUncategorized = category === 'Uncategorized';
+          const isEditing = editingCategory === category;
+          const isCollapsed = collapsedCategories[category] || false;
 
-            return (
-              <CategorySection
-                key={category}
-                category={category}
-                items={categoryItems}
-                isUncategorized={isUncategorized}
-                isDragOver={isDragOver}
-                isEditing={isEditing}
-                isCollapsed={isCollapsed}
-                onToggleCollapse={() => setCollapsedCategories(prev => ({
-                  ...prev,
-                  [category]: !prev[category]
-                }))}
-                editingCategoryName={editingCategoryName}
-                setEditingCategoryName={setEditingCategoryName}
-                handleRenameCategory={handleRenameCategory}
-                startEditingCategory={startEditingCategory}
-                handleDeleteCategory={handleDeleteCategory}
-                handleCategoryAdd={handleCategoryAdd}
-                categoryInputs={categoryInputs}
-                setCategoryInputs={setCategoryInputs}
-                activeId={activeId}
-                toggleItem={toggleItem}
-                deleteItem={deleteItem}
-                setEditingCategory={setEditingCategory}
-              />
-            );
-          })}
-        </main>
+          return (
+            <CategorySection
+              key={category}
+              category={category}
+              items={categoryItems}
+              isUncategorized={isUncategorized}
+              isEditing={isEditing}
+              isCollapsed={isCollapsed}
+              onToggleCollapse={() => setCollapsedCategories(prev => ({
+                ...prev,
+                [category]: !prev[category]
+              }))}
+              editingCategoryName={editingCategoryName}
+              setEditingCategoryName={setEditingCategoryName}
+              handleRenameCategory={handleRenameCategory}
+              startEditingCategory={startEditingCategory}
+              handleDeleteCategory={handleDeleteCategory}
+              handleCategoryAdd={handleCategoryAdd}
+              categoryInputs={categoryInputs}
+              setCategoryInputs={setCategoryInputs}
+              toggleItem={toggleItem}
+              deleteItem={deleteItem}
+              setEditingCategory={setEditingCategory}
+              onDragStart={handleDragStart}
+              draggedItem={draggedItem}
+              onDrop={handleDrop}
+            />
+          );
+        })}
+      </main>
 
-        <DragOverlay dropAnimation={null}>
-          {activeItem ? (
-            <div className="item item-overlay">
-              <label>
-                <input type="checkbox" checked={activeItem.checked} readOnly />
-                <span className="item-name">{activeItem.name}</span>
-              </label>
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      {/* Floating drag overlay */}
+      {draggedItem && (
+        <div
+          className="drag-overlay"
+          style={{
+            left: dragPos.x,
+            top: dragPos.y,
+          }}
+        >
+          <span className="item-name">{draggedItem.name}</span>
+        </div>
+      )}
     </div>
   );
 }

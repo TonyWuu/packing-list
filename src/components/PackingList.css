@@ -493,55 +493,24 @@
   color: var(--text-secondary);
 }
 
-/* Drag overlay - the lifted item that follows your finger */
-.item-overlay {
+/* Drag overlay - floating element that follows finger */
+.drag-overlay {
+  position: fixed;
+  transform: translate(-50%, -50%);
   background: var(--card-bg);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  cursor: grabbing;
-  padding: 4px 8px;
-  display: flex;
-  align-items: center;
-}
-
-.item-overlay label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.item-overlay input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
-  border: 1.5px solid var(--border-color);
-  border-radius: 50%;
-  background: var(--card-bg);
-  flex-shrink: 0;
-  position: relative;
-}
-
-.item-overlay input[type="checkbox"]:checked {
-  background: linear-gradient(135deg, var(--success-color), var(--accent-green));
-  border-color: var(--success-color);
-}
-
-.item-overlay input[type="checkbox"]:checked::after {
-  content: '';
-  position: absolute;
-  left: 5px;
-  top: 2px;
-  width: 4px;
-  height: 8px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.item-overlay .item-name {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  padding: 8px 16px;
+  pointer-events: none;
+  z-index: 9999;
   font-size: 0.875rem;
-  font-weight: 400;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.item.dragging {
+  opacity: 0.3;
 }
 
 /* Mobile */
