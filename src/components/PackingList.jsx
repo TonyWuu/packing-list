@@ -194,14 +194,14 @@ export default function PackingList() {
 
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
-      delay: 200,
-      tolerance: 8,
+      delay: 150,
+      tolerance: 5,
     },
   });
 
   const pointerSensor = useSensor(PointerSensor, {
     activationConstraint: {
-      distance: 8,
+      distance: 5,
     },
   });
 
@@ -315,17 +315,6 @@ export default function PackingList() {
       }
       newItems.splice(insertIndex, 0, movedItem);
     }
-
-    // Update order values for affected categories
-    const affectedCategories = new Set([currentCategory, targetCategory]);
-    affectedCategories.forEach(cat => {
-      let order = 0;
-      newItems.forEach((item, idx) => {
-        if (item.category === cat) {
-          newItems[idx] = { ...newItems[idx], order: order++ };
-        }
-      });
-    });
 
     setLocalItems(newItems);
   };
@@ -556,10 +545,7 @@ export default function PackingList() {
           })}
         </main>
 
-        <DragOverlay dropAnimation={{
-          duration: 200,
-          easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
-        }}>
+        <DragOverlay dropAnimation={null}>
           {activeItem ? (
             <div className="item item-overlay">
               <label>

@@ -496,12 +496,10 @@
 /* Drag overlay - the lifted item that follows your finger */
 .item-overlay {
   background: var(--card-bg);
-  border-radius: 4px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 8px 16px rgba(0, 0, 0, 0.1);
-  transform: scale(1.02) rotate(1deg);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   cursor: grabbing;
-  padding: 4px 6px;
-  border: 2px solid var(--primary-color);
+  padding: 4px 8px;
   display: flex;
   align-items: center;
 }
