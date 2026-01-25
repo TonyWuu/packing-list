@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { usePackingList } from '../hooks/usePackingList';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -34,6 +34,8 @@ export default function PackingList() {
   const categoryRefs = useRef({});
   const touchStartPos = useRef(null);
   const draggedElement = useRef(null);
+  const touchTimeout = useRef(null);
+  const containerRef = useRef(null);
 
   // Group items by category
   const groupedItems = useMemo(() => {
@@ -154,39 +156,30 @@ export default function PackingList() {
     touchStartPos.current = { x: touch.clientX, y: touch.clientY };
     draggedElement.current = e.currentTarget;
 
-    // Delay to distinguish from scroll
-    const timeout = setTimeout(() => {
+    // Clear any existing timeout
+    if (touchTimeout.current) {
+      clearTimeout(touchTimeout.current);
+    }
+
+    // Delay to distinguish from scroll - longer press to activate drag
+    touchTimeout.current = setTimeout(() => {
       setDraggedItem(item);
       setTouchDragging(true);
       if (draggedElement.current) {
         draggedElement.current.classList.add('touch-dragging');
       }
-    }, 200);
-
-    e.currentTarget.dataset.touchTimeout = timeout;
+      // Vibrate if available to indicate drag started
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 400);
   }, []);
 
-  const handleTouchMove = useCallback((e) => {
-    if (!touchDragging || !draggedItem) return;
-
-    const touch = e.touches[0];
-    const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
-
-    let foundCategory = null;
-    for (const el of elements) {
-      if (el.dataset.category) {
-        foundCategory = el.dataset.category;
-        break;
-      }
-    }
-
-    setDragOverCategory(foundCategory);
-  }, [touchDragging, draggedItem]);
-
-  const handleTouchEnd = useCallback(async (e) => {
-    // Clear the timeout if touch ended quickly
-    if (e.currentTarget?.dataset?.touchTimeout) {
-      clearTimeout(parseInt(e.currentTarget.dataset.touchTimeout));
+  const handleTouchEnd = useCallback(async () => {
+    // Clear the timeout
+    if (touchTimeout.current) {
+      clearTimeout(touchTimeout.current);
+      touchTimeout.current = null;
     }
 
     if (draggedElement.current) {
@@ -205,6 +198,46 @@ export default function PackingList() {
     touchStartPos.current = null;
     draggedElement.current = null;
   }, [touchDragging, draggedItem, dragOverCategory, updateItem]);
+
+  // Attach touchmove with { passive: false } to allow preventDefault
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handler = (e) => {
+      const touch = e.touches[0];
+
+      // Cancel drag activation if user moves too much before timeout
+      if (touchTimeout.current && touchStartPos.current) {
+        const dx = Math.abs(touch.clientX - touchStartPos.current.x);
+        const dy = Math.abs(touch.clientY - touchStartPos.current.y);
+        if (dx > 10 || dy > 10) {
+          clearTimeout(touchTimeout.current);
+          touchTimeout.current = null;
+        }
+      }
+
+      if (!touchDragging || !draggedItem) return;
+
+      // Prevent scrolling while dragging
+      e.preventDefault();
+
+      const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
+
+      let foundCategory = null;
+      for (const el of elements) {
+        if (el.dataset.category) {
+          foundCategory = el.dataset.category;
+          break;
+        }
+      }
+
+      setDragOverCategory(foundCategory);
+    };
+
+    container.addEventListener('touchmove', handler, { passive: false });
+    return () => container.removeEventListener('touchmove', handler);
+  }, [touchDragging, draggedItem]);
 
   const handleShare = async () => {
     if (shareToken) {
@@ -234,7 +267,7 @@ export default function PackingList() {
   }
 
   return (
-    <div className="packing-list" onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+    <div className="packing-list" ref={containerRef} onTouchEnd={handleTouchEnd}>
       <header className="header">
         <div className="header-top">
           <h1>Packing List</h1>
