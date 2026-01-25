@@ -296,7 +296,7 @@
 .item {
   display: flex;
   align-items: center;
-  padding: 8px 4px;
+  padding: 4px 2px;
   margin: 0;
   cursor: grab;
   user-select: none;
@@ -304,7 +304,7 @@
   touch-action: none;
   background: transparent;
   border-bottom: 1px solid var(--border-color);
-  min-height: 36px;
+  min-height: 28px;
 }
 
 .item:last-child {
@@ -331,7 +331,7 @@
 .item label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
   cursor: pointer;
 }
@@ -340,9 +340,9 @@
 .item input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border-color);
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border-color);
   border-radius: 50%;
   cursor: pointer;
   position: relative;
@@ -362,17 +362,17 @@
 .item input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
-  left: 6px;
+  left: 5px;
   top: 2px;
-  width: 5px;
-  height: 9px;
+  width: 4px;
+  height: 8px;
   border: solid white;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .item-name {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: var(--text-primary);
   font-weight: 400;
 }
@@ -496,11 +496,11 @@
 /* Drag overlay - the lifted item that follows your finger */
 .item-overlay {
   background: var(--card-bg);
-  border-radius: 6px;
+  border-radius: 4px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 8px 16px rgba(0, 0, 0, 0.1);
   transform: scale(1.02) rotate(1deg);
   cursor: grabbing;
-  padding: 6px 8px;
+  padding: 4px 6px;
   border: 2px solid var(--primary-color);
   display: flex;
   align-items: center;
@@ -509,15 +509,15 @@
 .item-overlay label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .item-overlay input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border-color);
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border-color);
   border-radius: 50%;
   background: var(--card-bg);
   flex-shrink: 0;
@@ -532,17 +532,17 @@
 .item-overlay input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
-  left: 6px;
+  left: 5px;
   top: 2px;
-  width: 5px;
-  height: 9px;
+  width: 4px;
+  height: 8px;
   border: solid white;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .item-overlay .item-name {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 400;
 }
 
