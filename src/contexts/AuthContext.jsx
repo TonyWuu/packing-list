@@ -22,29 +22,44 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Set persistence to local (survives browser restart)
-    setPersistence(auth, browserLocalPersistence).catch(console.error);
+    let unsubscribe = () => {};
 
-    // Check for redirect result (for mobile sign-in)
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) {
-          setUser(result.user);
-        }
-      })
-      .catch((error) => {
-        console.error('Redirect result error:', error);
-        // Don't show error for redirect cancelled/closed
-        if (error.code !== 'auth/redirect-cancelled-by-user') {
-          setError(error.message);
-        }
-      });
+    const initAuth = async () => {
+      try {
+        // Set persistence to local (survives browser restart)
+        await setPersistence(auth, browserLocalPersistence);
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-    });
-    return unsubscribe;
+        // Check for redirect result FIRST (for mobile sign-in)
+        // This must happen before onAuthStateChanged to properly capture redirect
+        try {
+          const result = await getRedirectResult(auth);
+          if (result?.user) {
+            console.log('Redirect sign-in successful:', result.user.email);
+            setUser(result.user);
+            setLoading(false);
+          }
+        } catch (redirectError) {
+          console.error('Redirect result error:', redirectError);
+          if (redirectError.code !== 'auth/redirect-cancelled-by-user') {
+            setError(redirectError.message);
+          }
+        }
+
+        // Always set up auth state listener (handles sign-out, token refresh, etc.)
+        unsubscribe = onAuthStateChanged(auth, (user) => {
+          console.log('Auth state changed:', user?.email || 'signed out');
+          setUser(user);
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error('Auth init error:', err);
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    return () => unsubscribe();
   }, []);
 
   const login = async () => {
@@ -56,6 +71,8 @@ export function AuthProvider({ children }) {
       // For mobile browsers, use redirect (works better than popup)
       // Note: iOS standalone PWA is handled in the Login component
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Store a flag to know we're expecting a redirect
+        sessionStorage.setItem('authRedirectPending', 'true');
         await signInWithRedirect(auth, googleProvider);
       } else {
         // Desktop: use popup
