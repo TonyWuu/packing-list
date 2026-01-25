@@ -73,12 +73,17 @@ export function usePackingList() {
 
   const addItem = async (name, category, tripTypes = []) => {
     if (!user) return;
+    // Find max order in this category to add at end
+    const categoryItems = items.filter(i => i.category === category);
+    const maxOrder = categoryItems.reduce((max, i) => Math.max(max, i.order ?? 0), -1);
+
     const itemRef = doc(collection(db, 'users', user.uid, 'items'));
     await setDoc(itemRef, {
       name,
       category,
       tripTypes,
       checked: false,
+      order: maxOrder + 1,
       createdAt: Date.now()
     });
   };
@@ -108,6 +113,16 @@ export function usePackingList() {
     items.forEach(item => {
       const itemRef = doc(db, 'users', user.uid, 'items', item.id);
       batch.update(itemRef, { checked: false });
+    });
+    await batch.commit();
+  };
+
+  const reorderItems = async (orderedIds, category) => {
+    if (!user) return;
+    const batch = writeBatch(db);
+    orderedIds.forEach((id, index) => {
+      const itemRef = doc(db, 'users', user.uid, 'items', id);
+      batch.update(itemRef, { order: index, category });
     });
     await batch.commit();
   };
@@ -149,6 +164,7 @@ export function usePackingList() {
     deleteItem,
     toggleItem,
     resetAllChecks,
+    reorderItems,
     updateSettings,
     generateShareToken,
     revokeShareToken

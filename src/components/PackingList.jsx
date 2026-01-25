@@ -6,27 +6,141 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  useDroppable,
-  useDraggable,
+  closestCenter,
+  pointerWithin,
+  rectIntersection,
 } from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { usePackingList } from '../hooks/usePackingList';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import './PackingList.css';
 
-function DroppableCategory({ category, children, isDragOver }) {
-  const { setNodeRef } = useDroppable({
-    id: `category-${category}`,
-    data: { category },
+function SortableItem({ item, activeId, toggleItem, deleteItem }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: item.id,
+    data: { item, type: 'item' },
   });
 
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0 : 1,
+    visibility: isDragging ? 'hidden' : 'visible',
+  };
+
   return (
-    <section
+    <li
       ref={setNodeRef}
-      className={`category ${isDragOver ? 'drag-over' : ''}`}
+      style={style}
+      className={`item ${item.checked ? 'checked' : ''}`}
+      {...listeners}
+      {...attributes}
     >
-      {children}
+      <label onClick={(e) => e.stopPropagation()}>
+        <input
+          type="checkbox"
+          checked={item.checked}
+          onChange={() => toggleItem(item.id)}
+        />
+        <span className="item-name">{item.name}</span>
+      </label>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          deleteItem(item.id);
+        }}
+        className="item-delete"
+      >
+        ×
+      </button>
+    </li>
+  );
+}
+
+function CategorySection({ category, items, isUncategorized, isDragOver, isEditing, editingCategoryName, setEditingCategoryName, handleRenameCategory, startEditingCategory, handleDeleteCategory, handleCategoryAdd, categoryInputs, setCategoryInputs, activeId, toggleItem, deleteItem, setEditingCategory }) {
+  const itemIds = items.map(item => item.id);
+
+  return (
+    <section className={`category ${isDragOver ? 'drag-over' : ''}`} data-category={category}>
+      <div className="category-header">
+        {isEditing ? (
+          <input
+            type="text"
+            className="category-edit-input"
+            value={editingCategoryName}
+            onChange={(e) => setEditingCategoryName(e.target.value)}
+            onBlur={() => handleRenameCategory(category)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRenameCategory(category);
+              if (e.key === 'Escape') setEditingCategory(null);
+            }}
+            autoFocus
+          />
+        ) : (
+          <h2
+            className="category-name"
+            onClick={() => !isUncategorized && startEditingCategory(category)}
+            title={isUncategorized ? '' : 'Click to rename'}
+          >
+            {category}
+            {!isUncategorized && <span className="edit-hint">✎</span>}
+          </h2>
+        )}
+        {!isUncategorized && !isEditing && (
+          <button
+            onClick={() => handleDeleteCategory(category)}
+            className="category-delete"
+            title="Delete category"
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+        <ul className="items">
+          {items.map(item => (
+            <SortableItem
+              key={item.id}
+              item={item}
+              activeId={activeId}
+              toggleItem={toggleItem}
+              deleteItem={deleteItem}
+            />
+          ))}
+        </ul>
+      </SortableContext>
+
+      {!isUncategorized && (
+        <form
+          onSubmit={(e) => handleCategoryAdd(category, e)}
+          className="category-add"
+        >
+          <input
+            type="text"
+            placeholder="Add item..."
+            value={categoryInputs[category] || ''}
+            onChange={(e) => setCategoryInputs(prev => ({
+              ...prev,
+              [category]: e.target.value
+            }))}
+          />
+        </form>
+      )}
     </section>
   );
 }
@@ -44,6 +158,7 @@ export default function PackingList() {
     toggleItem,
     deleteItem,
     resetAllChecks,
+    reorderItems,
     updateSettings,
     generateShareToken,
   } = usePackingList();
@@ -53,13 +168,13 @@ export default function PackingList() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [activeId, setActiveId] = useState(null);
   const [activeItem, setActiveItem] = useState(null);
   const [overCategory, setOverCategory] = useState(null);
 
-  // Touch sensor with delay for long press, pointer sensor for desktop
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
-      delay: 300,
+      delay: 200,
       tolerance: 8,
     },
   });
@@ -72,7 +187,7 @@ export default function PackingList() {
 
   const sensors = useSensors(touchSensor, pointerSensor);
 
-  // Group items by category
+  // Group items by category, sorted by order
   const groupedItems = useMemo(() => {
     const groups = {};
     settings.categories.forEach(cat => {
@@ -80,23 +195,26 @@ export default function PackingList() {
     });
     groups['Uncategorized'] = [];
 
-    items
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .forEach(item => {
-        if (groups[item.category]) {
-          groups[item.category].push(item);
-        } else {
-          groups['Uncategorized'].push(item);
-        }
-      });
+    items.forEach(item => {
+      if (groups[item.category]) {
+        groups[item.category].push(item);
+      } else {
+        groups['Uncategorized'].push(item);
+      }
+    });
+
+    // Sort each category by order
+    Object.keys(groups).forEach(cat => {
+      groups[cat].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    });
 
     return groups;
   }, [items, settings.categories]);
 
   const handleDragStart = (event) => {
     const { active } = event;
+    setActiveId(active.id);
     setActiveItem(active.data.current.item);
-    // Haptic feedback
     if (navigator.vibrate) {
       navigator.vibrate(50);
     }
@@ -104,28 +222,82 @@ export default function PackingList() {
 
   const handleDragOver = (event) => {
     const { over } = event;
-    if (over?.data?.current?.category) {
-      setOverCategory(over.data.current.category);
-    } else {
+    if (!over) {
       setOverCategory(null);
+      return;
+    }
+
+    // Check if over a category or an item
+    const overData = over.data.current;
+    if (overData?.item) {
+      setOverCategory(overData.item.category);
+    } else if (over.id.toString().startsWith('category-')) {
+      setOverCategory(over.id.toString().replace('category-', ''));
     }
   };
 
   const handleDragEnd = async (event) => {
-    const { over } = event;
+    const { active, over } = event;
 
-    if (over?.data?.current?.category && activeItem) {
-      const newCategory = over.data.current.category;
-      if (activeItem.category !== newCategory) {
-        await updateItem(activeItem.id, { category: newCategory });
-      }
-    }
-
+    setActiveId(null);
     setActiveItem(null);
     setOverCategory(null);
+
+    if (!over || !active.data.current?.item) return;
+
+    const activeItemData = active.data.current.item;
+    const overId = over.id;
+    const overData = over.data.current;
+
+    // Determine target category
+    let targetCategory = activeItemData.category;
+    if (overData?.item) {
+      targetCategory = overData.item.category;
+    }
+
+    // Get the items in the target category
+    const categoryItems = [...(groupedItems[targetCategory] || [])];
+
+    // If moving to same category
+    if (activeItemData.category === targetCategory) {
+      const oldIndex = categoryItems.findIndex(i => i.id === active.id);
+      const newIndex = overData?.item
+        ? categoryItems.findIndex(i => i.id === overId)
+        : categoryItems.length;
+
+      if (oldIndex !== -1 && oldIndex !== newIndex) {
+        const reordered = arrayMove(categoryItems, oldIndex, newIndex);
+        const orderedIds = reordered.map(i => i.id);
+        await reorderItems(orderedIds, targetCategory);
+      }
+    } else {
+      // Moving to different category
+      // Remove from old category
+      const oldCategoryItems = groupedItems[activeItemData.category].filter(i => i.id !== active.id);
+
+      // Find insert position in new category
+      let insertIndex = categoryItems.length;
+      if (overData?.item) {
+        insertIndex = categoryItems.findIndex(i => i.id === overId);
+        if (insertIndex === -1) insertIndex = categoryItems.length;
+      }
+
+      // Insert into new category
+      const newCategoryItems = [...categoryItems];
+      newCategoryItems.splice(insertIndex, 0, activeItemData);
+
+      // Update old category order
+      if (oldCategoryItems.length > 0) {
+        await reorderItems(oldCategoryItems.map(i => i.id), activeItemData.category);
+      }
+
+      // Update new category order (this also changes the item's category)
+      await reorderItems(newCategoryItems.map(i => i.id), targetCategory);
+    }
   };
 
   const handleDragCancel = () => {
+    setActiveId(null);
     setActiveItem(null);
     setOverCategory(null);
   };
@@ -277,6 +449,7 @@ export default function PackingList() {
 
       <DndContext
         sensors={sensors}
+        collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
@@ -290,75 +463,26 @@ export default function PackingList() {
             const isEditing = editingCategory === category;
 
             return (
-              <DroppableCategory
+              <CategorySection
                 key={category}
                 category={category}
+                items={categoryItems}
+                isUncategorized={isUncategorized}
                 isDragOver={isDragOver}
-              >
-                <div className="category-header">
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      className="category-edit-input"
-                      value={editingCategoryName}
-                      onChange={(e) => setEditingCategoryName(e.target.value)}
-                      onBlur={() => handleRenameCategory(category)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleRenameCategory(category);
-                        if (e.key === 'Escape') setEditingCategory(null);
-                      }}
-                      autoFocus
-                    />
-                  ) : (
-                    <h2
-                      className="category-name"
-                      onClick={() => !isUncategorized && startEditingCategory(category)}
-                      title={isUncategorized ? '' : 'Click to rename'}
-                    >
-                      {category}
-                      {!isUncategorized && <span className="edit-hint">✎</span>}
-                    </h2>
-                  )}
-                  {!isUncategorized && !isEditing && (
-                    <button
-                      onClick={() => handleDeleteCategory(category)}
-                      className="category-delete"
-                      title="Delete category"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-
-                <ul className="items">
-                  {categoryItems.map(item => (
-                    <DraggableItemRow
-                      key={item.id}
-                      item={item}
-                      activeItem={activeItem}
-                      toggleItem={toggleItem}
-                      deleteItem={deleteItem}
-                    />
-                  ))}
-                </ul>
-
-                {!isUncategorized && (
-                  <form
-                    onSubmit={(e) => handleCategoryAdd(category, e)}
-                    className="category-add"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Add item..."
-                      value={categoryInputs[category] || ''}
-                      onChange={(e) => setCategoryInputs(prev => ({
-                        ...prev,
-                        [category]: e.target.value
-                      }))}
-                    />
-                  </form>
-                )}
-              </DroppableCategory>
+                isEditing={isEditing}
+                editingCategoryName={editingCategoryName}
+                setEditingCategoryName={setEditingCategoryName}
+                handleRenameCategory={handleRenameCategory}
+                startEditingCategory={startEditingCategory}
+                handleDeleteCategory={handleDeleteCategory}
+                handleCategoryAdd={handleCategoryAdd}
+                categoryInputs={categoryInputs}
+                setCategoryInputs={setCategoryInputs}
+                activeId={activeId}
+                toggleItem={toggleItem}
+                deleteItem={deleteItem}
+                setEditingCategory={setEditingCategory}
+              />
             );
           })}
 
@@ -390,52 +514,5 @@ export default function PackingList() {
         </DragOverlay>
       </DndContext>
     </div>
-  );
-}
-
-function DraggableItemRow({ item, activeItem, toggleItem, deleteItem }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging,
-  } = useDraggable({
-    id: item.id,
-    data: { item },
-  });
-
-  const style = transform ? {
-    transform: CSS.Translate.toString(transform),
-  } : undefined;
-
-  const isBeingDragged = activeItem?.id === item.id;
-
-  return (
-    <li
-      ref={setNodeRef}
-      style={style}
-      className={`item ${item.checked ? 'checked' : ''} ${isBeingDragged ? 'dragging' : ''}`}
-      {...listeners}
-      {...attributes}
-    >
-      <label onClick={(e) => e.stopPropagation()}>
-        <input
-          type="checkbox"
-          checked={item.checked}
-          onChange={() => toggleItem(item.id)}
-        />
-        <span className="item-name">{item.name}</span>
-      </label>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          deleteItem(item.id);
-        }}
-        className="item-delete"
-      >
-        ×
-      </button>
-    </li>
   );
 }
