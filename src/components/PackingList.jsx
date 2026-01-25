@@ -190,7 +190,6 @@ export default function PackingList() {
   const [activeId, setActiveId] = useState(null);
   const [activeItem, setActiveItem] = useState(null);
   const [overCategory, setOverCategory] = useState(null);
-  const [localItems, setLocalItems] = useState(null); // Temporary state during drag
 
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
@@ -208,16 +207,14 @@ export default function PackingList() {
   const sensors = useSensors(touchSensor, pointerSensor);
 
   // Group items by category, sorted by order
-  // Use localItems during drag for real-time reordering visuals
   const groupedItems = useMemo(() => {
-    const itemsToUse = localItems || items;
     const groups = {};
     settings.categories.forEach(cat => {
       groups[cat] = [];
     });
     groups['Uncategorized'] = [];
 
-    itemsToUse.forEach(item => {
+    items.forEach(item => {
       if (groups[item.category]) {
         groups[item.category].push(item);
       } else {
@@ -231,132 +228,88 @@ export default function PackingList() {
     });
 
     return groups;
-  }, [items, settings.categories, localItems]);
+  }, [items, settings.categories]);
 
   const handleDragStart = (event) => {
     const { active } = event;
     setActiveId(active.id);
     setActiveItem(active.data.current.item);
-    setLocalItems([...items]); // Start with current items
-    if (navigator.vibrate) {
-      navigator.vibrate(50);
-    }
   };
 
   const handleDragOver = (event) => {
-    const { active, over } = event;
-    if (!over || !localItems) {
+    const { over } = event;
+    if (!over) {
+      setOverCategory(null);
       return;
     }
 
-    const activeItemData = active.data.current?.item;
-    if (!activeItemData) return;
-
-    // Determine target category and position
     const overData = over.data.current;
-    let targetCategory = null;
-    let overItemId = null;
-
     if (overData?.type === 'category') {
-      // Hovering over empty category area
-      targetCategory = overData.category;
+      setOverCategory(overData.category);
     } else if (overData?.item) {
-      // Hovering over an item
-      targetCategory = overData.item.category;
-      overItemId = over.id;
+      setOverCategory(overData.item.category);
     }
-
-    if (!targetCategory) {
-      return;
-    }
-
-    setOverCategory(targetCategory);
-
-    // Find current position of active item in localItems
-    const activeIndex = localItems.findIndex(i => i.id === active.id);
-    if (activeIndex === -1) return;
-
-    const currentItem = localItems[activeIndex];
-    const currentCategory = currentItem.category;
-
-    // Skip if hovering over itself
-    if (overItemId === active.id) return;
-
-    // Check if we need to move
-    const overIndex = overItemId ? localItems.findIndex(i => i.id === overItemId) : -1;
-
-    // Only update if actually changing position or category
-    if (currentCategory === targetCategory && (overIndex === -1 || overIndex === activeIndex)) return;
-
-    // Create new items array with the move applied
-    const newItems = localItems.map(item => ({ ...item })); // Deep copy
-    const movedItem = { ...newItems[activeIndex], category: targetCategory };
-    newItems.splice(activeIndex, 1);
-
-    // Find where to insert
-    if (overItemId && overIndex !== -1) {
-      // Adjust index since we removed an item
-      const adjustedIndex = overIndex > activeIndex ? overIndex - 1 : overIndex;
-      newItems.splice(adjustedIndex, 0, movedItem);
-    } else {
-      // Add to end of category (for empty categories or dropping on category itself)
-      let insertIndex = newItems.length;
-      let foundCategory = false;
-      for (let i = newItems.length - 1; i >= 0; i--) {
-        if (newItems[i].category === targetCategory) {
-          insertIndex = i + 1;
-          foundCategory = true;
-          break;
-        }
-      }
-      // If category is empty, just push to the end
-      if (!foundCategory) {
-        insertIndex = newItems.length;
-      }
-      newItems.splice(insertIndex, 0, movedItem);
-    }
-
-    setLocalItems(newItems);
   };
 
   const handleDragEnd = async (event) => {
-    const { active } = event;
+    const { active, over } = event;
 
-    if (!localItems || !active.data.current?.item) {
+    if (!active.data.current?.item || !over) {
       setActiveId(null);
       setActiveItem(null);
       setOverCategory(null);
-      setLocalItems(null);
       return;
     }
 
-    // Get all affected categories by comparing original and local items
-    const originalItem = items.find(i => i.id === active.id);
-    const movedItem = localItems.find(i => i.id === active.id);
+    const draggedItem = active.data.current.item;
+    const overData = over.data.current;
 
-    if (originalItem && movedItem) {
-      const affectedCategories = new Set([originalItem.category, movedItem.category]);
+    let targetCategory = draggedItem.category;
+    let targetIndex = -1;
 
-      // Save each affected category's order
-      for (const cat of affectedCategories) {
-        const categoryItems = localItems.filter(i => i.category === cat);
-        if (categoryItems.length > 0) {
-          await reorderItems(categoryItems.map(i => i.id), cat);
-        }
+    if (overData?.type === 'category') {
+      targetCategory = overData.category;
+    } else if (overData?.item) {
+      targetCategory = overData.item.category;
+      // Find the index of the item we're dropping on
+      const categoryItems = items.filter(i => i.category === targetCategory);
+      targetIndex = categoryItems.findIndex(i => i.id === over.id);
+    }
+
+    // If category changed or position changed, update
+    if (targetCategory !== draggedItem.category) {
+      // Move to new category
+      await updateItem(draggedItem.id, { category: targetCategory });
+
+      // Reorder in new category
+      const newCategoryItems = items
+        .filter(i => i.category === targetCategory && i.id !== draggedItem.id);
+      if (targetIndex >= 0) {
+        newCategoryItems.splice(targetIndex, 0, draggedItem);
+      } else {
+        newCategoryItems.push(draggedItem);
+      }
+      await reorderItems(newCategoryItems.map(i => i.id), targetCategory);
+    } else if (targetIndex >= 0) {
+      // Same category, just reorder
+      const categoryItems = items.filter(i => i.category === targetCategory);
+      const currentIndex = categoryItems.findIndex(i => i.id === draggedItem.id);
+      if (currentIndex !== targetIndex) {
+        const newOrder = categoryItems.filter(i => i.id !== draggedItem.id);
+        newOrder.splice(targetIndex, 0, draggedItem);
+        await reorderItems(newOrder.map(i => i.id), targetCategory);
       }
     }
 
     setActiveId(null);
     setActiveItem(null);
     setOverCategory(null);
-    setLocalItems(null);
   };
 
   const handleDragCancel = () => {
     setActiveId(null);
     setActiveItem(null);
     setOverCategory(null);
-    setLocalItems(null);
   };
 
   const handleCategoryAdd = (category, e) => {
