@@ -6,7 +6,10 @@ import {
   getRedirectResult,
   signOut,
   browserLocalPersistence,
-  setPersistence
+  setPersistence,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink
 } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 
@@ -20,6 +23,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [emailLinkSent, setEmailLinkSent] = useState(false);
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -29,8 +33,31 @@ export function AuthProvider({ children }) {
         // Set persistence to local (survives browser restart)
         await setPersistence(auth, browserLocalPersistence);
 
-        // Check for redirect result FIRST (for mobile sign-in)
-        // This must happen before onAuthStateChanged to properly capture redirect
+        // Check if this is an email link sign-in
+        if (isSignInWithEmailLink(auth, window.location.href)) {
+          let email = window.localStorage.getItem('emailForSignIn');
+          if (!email) {
+            // User opened the link on a different device, ask for email
+            email = window.prompt('Please provide your email for confirmation');
+          }
+          if (email) {
+            try {
+              const result = await signInWithEmailLink(auth, email, window.location.href);
+              console.log('Email link sign-in successful:', result.user.email);
+              window.localStorage.removeItem('emailForSignIn');
+              // Clean up the URL
+              window.history.replaceState(null, '', window.location.pathname);
+              setUser(result.user);
+              setLoading(false);
+              return;
+            } catch (emailLinkError) {
+              console.error('Email link sign-in error:', emailLinkError);
+              setError(emailLinkError.message);
+            }
+          }
+        }
+
+        // Check for redirect result (for mobile sign-in)
         try {
           const result = await getRedirectResult(auth);
           if (result?.user) {
@@ -94,12 +121,35 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const sendEmailLink = async (email) => {
+    setError(null);
+    const actionCodeSettings = {
+      // URL to redirect to after email link is clicked
+      url: window.location.origin + window.location.pathname,
+      handleCodeInApp: true,
+    };
+
+    try {
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      // Save the email locally to complete sign-in if opened on same device
+      window.localStorage.setItem('emailForSignIn', email);
+      setEmailLinkSent(true);
+      return true;
+    } catch (error) {
+      console.error('Send email link error:', error);
+      setError(error.message);
+      throw error;
+    }
+  };
+
   const value = {
     user,
     loading,
     error,
+    emailLinkSent,
     login,
-    logout
+    logout,
+    sendEmailLink
   };
 
   return (

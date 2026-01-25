@@ -141,3 +141,73 @@
 .copy-btn svg {
   flex-shrink: 0;
 }
+
+/* Email form */
+.email-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.email-input {
+  width: 100%;
+  padding: 14px 18px;
+  border: 2px solid var(--border-color);
+  border-radius: 14px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.email-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px var(--primary-glow);
+}
+
+.email-input::placeholder {
+  color: var(--text-muted);
+}
+
+.email-btn {
+  margin-top: 4px;
+}
+
+.email-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Email sent state */
+.email-sent {
+  text-align: center;
+}
+
+.email-sent-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.email-sent-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.email-sent-text {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+/* Login options */
+.login-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
