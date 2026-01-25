@@ -127,56 +127,6 @@
   color: var(--primary-color);
 }
 
-/* Quick add */
-.quick-add {
-  display: flex;
-  gap: 10px;
-}
-
-.quick-add input {
-  flex: 1;
-  padding: 14px 18px;
-  border: 2px solid var(--border-color);
-  border-radius: 14px;
-  font-size: 0.95rem;
-  background: var(--card-bg);
-  color: var(--text-primary);
-  font-family: inherit;
-  box-shadow: var(--card-shadow);
-}
-
-.quick-add input::placeholder {
-  color: var(--text-muted);
-}
-
-.quick-add input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: var(--card-shadow), 0 0 0 4px var(--primary-glow);
-}
-
-.quick-add button {
-  padding: 14px 24px;
-  background: linear-gradient(135deg, var(--primary-color), var(--accent-purple));
-  color: white;
-  border: none;
-  border-radius: 14px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
-}
-
-.quick-add button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
-}
-
-.quick-add button:active {
-  transform: translateY(0);
-}
-
 /* Categories */
 .categories {
   display: flex;
@@ -186,38 +136,21 @@
 
 .category {
   background: var(--card-bg);
-  border-radius: 20px;
-  padding: 16px;
-  border: 2px solid transparent;
+  border-radius: 16px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
   box-shadow: var(--card-shadow);
-  position: relative;
-  overflow: hidden;
 }
 
-.category::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--primary-color), var(--accent-purple));
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.category:hover::before {
-  opacity: 1;
+.category:hover {
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-1px);
 }
 
 .category.drag-over {
   border-color: var(--primary-color);
   background: var(--hover-bg);
-  box-shadow: var(--card-shadow-hover), 0 0 0 4px var(--primary-glow);
-}
-
-.category.drag-over::before {
-  opacity: 1;
+  box-shadow: var(--card-shadow-hover), 0 0 0 3px var(--primary-glow);
 }
 
 .category-header {
@@ -299,18 +232,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  min-height: 20px;
-}
-
-.empty-category-placeholder {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  font-style: italic;
-  padding: 12px;
-  text-align: center;
-  background: var(--secondary-bg);
-  border-radius: 12px;
-  border: 2px dashed var(--border-color);
+  min-height: 8px;
 }
 
 .item {
@@ -582,15 +504,5 @@
   .item-delete,
   .category-delete {
     opacity: 1;
-  }
-
-  .category {
-    border-radius: 16px;
-    padding: 14px;
-  }
-
-  .item {
-    padding: 6px 4px;
-    border-radius: 6px;
   }
 }

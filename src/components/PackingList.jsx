@@ -116,9 +116,6 @@ function CategorySection({ category, items, isUncategorized, isDragOver, isEditi
 
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <ul className="items" ref={setDroppableRef}>
-          {items.length === 0 && (
-            <li className="empty-category-placeholder">Drop items here</li>
-          )}
           {items.map(item => (
             <SortableItem
               key={item.id}
@@ -169,7 +166,6 @@ export default function PackingList() {
     generateShareToken,
   } = usePackingList();
 
-  const [quickAddValue, setQuickAddValue] = useState('');
   const [categoryInputs, setCategoryInputs] = useState({});
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
@@ -357,13 +353,6 @@ export default function PackingList() {
     setLocalItems(null);
   };
 
-  const handleQuickAdd = async (e) => {
-    e.preventDefault();
-    if (!quickAddValue.trim()) return;
-    await addItem(quickAddValue.trim(), 'Uncategorized', []);
-    setQuickAddValue('');
-  };
-
   const handleCategoryAdd = async (category, e) => {
     e.preventDefault();
     const value = categoryInputs[category];
@@ -491,14 +480,16 @@ export default function PackingList() {
           </button>
         </div>
 
-        <form onSubmit={handleQuickAdd} className="quick-add">
+        <form onSubmit={handleAddCategory} className="new-category">
           <input
             type="text"
-            placeholder="Quick add item..."
-            value={quickAddValue}
-            onChange={(e) => setQuickAddValue(e.target.value)}
+            placeholder="New category name..."
+            value={newCategoryName}
+            onChange={(e) => setNewCategoryName(e.target.value)}
           />
-          <button type="submit">Add</button>
+          <button type="submit" disabled={!newCategoryName.trim()}>
+            + Add
+          </button>
         </form>
       </header>
 
@@ -540,18 +531,6 @@ export default function PackingList() {
               />
             );
           })}
-
-          <form onSubmit={handleAddCategory} className="new-category">
-            <input
-              type="text"
-              placeholder="New category name..."
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-            />
-            <button type="submit" disabled={!newCategoryName.trim()}>
-              + Add Category
-            </button>
-          </form>
         </main>
 
         <DragOverlay dropAnimation={{
