@@ -69,7 +69,7 @@ function SortableItem({ item, activeId, toggleItem, deleteItem }) {
   );
 }
 
-function CategorySection({ category, items, isUncategorized, isDragOver, isEditing, editingCategoryName, setEditingCategoryName, handleRenameCategory, startEditingCategory, handleDeleteCategory, handleCategoryAdd, categoryInputs, setCategoryInputs, activeId, toggleItem, deleteItem, setEditingCategory }) {
+function CategorySection({ category, items, isUncategorized, isDragOver, isEditing, isCollapsed, onToggleCollapse, editingCategoryName, setEditingCategoryName, handleRenameCategory, startEditingCategory, handleDeleteCategory, handleCategoryAdd, categoryInputs, setCategoryInputs, activeId, toggleItem, deleteItem, setEditingCategory }) {
   const itemIds = items.map(item => item.id);
 
   const { setNodeRef: setDroppableRef } = useDroppable({
@@ -77,41 +77,57 @@ function CategorySection({ category, items, isUncategorized, isDragOver, isEditi
     data: { category, type: 'category' },
   });
 
+  const checkedCount = items.filter(i => i.checked).length;
+
   return (
-    <section className={`category ${isDragOver ? 'drag-over' : ''}`} data-category={category}>
+    <section className={`category ${isDragOver ? 'drag-over' : ''} ${isCollapsed ? 'collapsed' : ''}`} data-category={category}>
       <div className="category-header">
-        {isEditing ? (
-          <input
-            type="text"
-            className="category-edit-input"
-            value={editingCategoryName}
-            onChange={(e) => setEditingCategoryName(e.target.value)}
-            onBlur={() => handleRenameCategory(category)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleRenameCategory(category);
-              if (e.key === 'Escape') setEditingCategory(null);
-            }}
-            autoFocus
-          />
-        ) : (
-          <h2
-            className="category-name"
-            onClick={() => !isUncategorized && startEditingCategory(category)}
-            title={isUncategorized ? '' : 'Click to rename'}
-          >
-            {category}
-            {!isUncategorized && <span className="edit-hint">✎</span>}
-          </h2>
-        )}
-        {!isUncategorized && !isEditing && (
+        <div className="category-header-left">
           <button
-            onClick={() => handleDeleteCategory(category)}
-            className="category-delete"
-            title="Delete category"
+            className="collapse-toggle"
+            onClick={onToggleCollapse}
+            title={isCollapsed ? 'Expand' : 'Collapse'}
           >
-            ×
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+            </svg>
           </button>
-        )}
+          {isEditing ? (
+            <input
+              type="text"
+              className="category-edit-input"
+              value={editingCategoryName}
+              onChange={(e) => setEditingCategoryName(e.target.value)}
+              onBlur={() => handleRenameCategory(category)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRenameCategory(category);
+                if (e.key === 'Escape') setEditingCategory(null);
+              }}
+              autoFocus
+            />
+          ) : (
+            <h2
+              className="category-name"
+              onClick={() => !isUncategorized && startEditingCategory(category)}
+              title={isUncategorized ? '' : 'Click to rename'}
+            >
+              {category}
+              {!isUncategorized && <span className="edit-hint">✎</span>}
+            </h2>
+          )}
+          <span className="category-count">{checkedCount}/{items.length}</span>
+        </div>
+        <div className="category-header-right">
+          {!isUncategorized && !isEditing && (
+            <button
+              onClick={() => handleDeleteCategory(category)}
+              className="category-delete"
+              title="Delete category"
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
@@ -170,6 +186,7 @@ export default function PackingList() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [collapsedCategories, setCollapsedCategories] = useState({});
   const [activeId, setActiveId] = useState(null);
   const [activeItem, setActiveItem] = useState(null);
   const [overCategory, setOverCategory] = useState(null);
@@ -507,6 +524,7 @@ export default function PackingList() {
             const isUncategorized = category === 'Uncategorized';
             const isDragOver = overCategory === category;
             const isEditing = editingCategory === category;
+            const isCollapsed = collapsedCategories[category] || false;
 
             return (
               <CategorySection
@@ -516,6 +534,11 @@ export default function PackingList() {
                 isUncategorized={isUncategorized}
                 isDragOver={isDragOver}
                 isEditing={isEditing}
+                isCollapsed={isCollapsed}
+                onToggleCollapse={() => setCollapsedCategories(prev => ({
+                  ...prev,
+                  [category]: !prev[category]
+                }))}
                 editingCategoryName={editingCategoryName}
                 setEditingCategoryName={setEditingCategoryName}
                 handleRenameCategory={handleRenameCategory}
