@@ -301,22 +301,26 @@
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: pan-y;
+  -webkit-touch-callout: none;
   background: transparent;
   border-bottom: 1px solid var(--border-color);
   min-height: 28px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .item:last-child {
   border-bottom: none;
 }
 
-.item:hover {
-  background: var(--hover-bg);
+/* Only show hover on devices that support it (not touch) */
+@media (hover: hover) {
+  .item:hover {
+    background: var(--hover-bg);
+  }
 }
 
-.item:active {
-  cursor: grabbing;
+.item.dragging {
+  opacity: 0.3;
 }
 
 .item.checked {
@@ -507,10 +511,6 @@
   font-weight: 500;
   color: var(--text-primary);
   white-space: nowrap;
-}
-
-.item.dragging {
-  opacity: 0.3;
 }
 
 /* Mobile */

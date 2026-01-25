@@ -24,7 +24,6 @@ function CategorySection({
   setEditingCategory,
   onDragStart,
   draggedItem,
-  onDrop,
 }) {
   const checkedCount = items.filter(i => i.checked).length;
   const isDropTarget = draggedItem && draggedItem.category !== category;
@@ -33,8 +32,6 @@ function CategorySection({
     <section
       className={`category ${isCollapsed ? 'collapsed' : ''} ${isDropTarget ? 'drag-over' : ''}`}
       data-category={category}
-      onTouchEnd={() => draggedItem && onDrop(category)}
-      onMouseUp={() => draggedItem && onDrop(category)}
     >
       <div className="category-header">
         <div className="category-header-left">
@@ -202,7 +199,12 @@ export default function PackingList() {
       const startX = touch.clientX;
       const startY = touch.clientY;
 
+      let lastTouchPos = { x: startX, y: startY };
+
       const handleTouchMove = (moveEvent) => {
+        const t = moveEvent.touches[0];
+        lastTouchPos = { x: t.clientX, y: t.clientY };
+
         // If drag hasn't started yet, cancel the timeout (user is scrolling)
         if (!isDragging.current) {
           clearTimeout(dragTimeout.current);
@@ -211,8 +213,6 @@ export default function PackingList() {
           return;
         }
         // If dragging, update position
-        moveEvent.preventDefault();
-        const t = moveEvent.touches[0];
         setDragPos({ x: t.clientX, y: t.clientY });
       };
 
@@ -220,8 +220,20 @@ export default function PackingList() {
         clearTimeout(dragTimeout.current);
         document.removeEventListener('touchmove', handleTouchMove);
         document.removeEventListener('touchend', handleTouchEnd);
+        // Restore scrolling
+        document.body.style.touchAction = '';
+        document.body.style.overflow = '';
 
         if (isDragging.current) {
+          // Find the element under the last touch point to determine drop target
+          const elementUnder = document.elementFromPoint(lastTouchPos.x, lastTouchPos.y);
+          const categorySection = elementUnder?.closest('[data-category]');
+          const targetCategory = categorySection?.dataset.category;
+
+          if (targetCategory && targetCategory !== item.category) {
+            updateItem(item.id, { category: targetCategory });
+          }
+
           justDragged.current = true;
           isDragging.current = false;
           setTimeout(() => {
@@ -231,18 +243,18 @@ export default function PackingList() {
         }
       };
 
-      // Start drag after hold - but use passive listener so scroll works
+      // Start drag after hold
       dragTimeout.current = setTimeout(() => {
         isDragging.current = true;
         setDraggedItem(item);
-        setDragPos({ x: startX, y: startY });
+        setDragPos({ x: lastTouchPos.x, y: lastTouchPos.y });
         if (navigator.vibrate) navigator.vibrate(30);
-        // Now switch to non-passive to prevent scroll while dragging
-        document.removeEventListener('touchmove', handleTouchMove);
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        // Prevent scrolling while dragging by setting touch-action on body
+        document.body.style.touchAction = 'none';
+        document.body.style.overflow = 'hidden';
       }, 400);
 
-      // Use passive listener initially to allow scroll
+      // Use passive listener to allow scroll detection
       document.addEventListener('touchmove', handleTouchMove, { passive: true });
       document.addEventListener('touchend', handleTouchEnd);
       return;
@@ -257,12 +269,21 @@ export default function PackingList() {
       setDragPos({ x: moveEvent.clientX, y: moveEvent.clientY });
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (upEvent) => {
       clearTimeout(dragTimeout.current);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
 
       if (isDragging.current) {
+        // Find the element under the mouse to determine drop target
+        const elementUnder = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
+        const categorySection = elementUnder?.closest('[data-category]');
+        const targetCategory = categorySection?.dataset.category;
+
+        if (targetCategory && targetCategory !== item.category) {
+          updateItem(item.id, { category: targetCategory });
+        }
+
         justDragged.current = true;
         isDragging.current = false;
         setTimeout(() => {
@@ -280,14 +301,7 @@ export default function PackingList() {
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, []);
-
-  const handleDrop = useCallback(async (targetCategory) => {
-    if (!draggedItem || draggedItem.category === targetCategory) return;
-
-    // Move item to new category
-    await updateItem(draggedItem.id, { category: targetCategory });
-  }, [draggedItem, updateItem]);
+  }, [updateItem]);
 
   // Safe toggle that ignores clicks right after dragging
   const safeToggleItem = useCallback((itemId) => {
@@ -467,7 +481,6 @@ export default function PackingList() {
               setEditingCategory={setEditingCategory}
               onDragStart={handleDragStart}
               draggedItem={draggedItem}
-              onDrop={handleDrop}
             />
           );
         })}
