@@ -214,18 +214,47 @@
 }
 
 .category-drag-overlay {
-  background: linear-gradient(135deg, var(--primary-color), var(--accent-purple));
-  color: white;
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  padding: 10px 20px;
-  border-radius: 12px;
+  background: var(--card-bg);
+  border: 2px solid var(--primary-color);
+  border-radius: 16px;
+  padding: 14px 20px;
+  min-width: 180px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.category-drag-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .category-drag-name {
-  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-drag-name::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-purple));
+  border-radius: 2px;
+}
+
+.category-drag-count {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--secondary-bg);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
 }
 
 .collapse-toggle {
@@ -278,15 +307,19 @@
 .category-check-all {
   background: none;
   border: none;
-  padding: 6px;
+  padding: 6px 10px;
   cursor: pointer;
   color: var(--text-muted);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.6;
+  gap: 4px;
+  opacity: 0.7;
   transition: opacity 0.2s, color 0.2s, background 0.2s;
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-family: inherit;
 }
 
 .category:hover .category-check-all {
@@ -305,6 +338,11 @@
 
 .category-check-all.some-checked {
   color: var(--primary-color);
+}
+
+.check-all-label {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .category.collapsed .items,
