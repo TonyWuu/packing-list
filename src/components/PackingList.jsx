@@ -4,6 +4,128 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import './PackingList.css';
 
+// Smart categorization mapping
+const categoryKeywords = {
+  Clothes: [
+    'shirt', 'pants', 'jeans', 'shorts', 'dress', 'skirt', 'jacket', 'coat',
+    'sweater', 'hoodie', 'socks', 'underwear', 'boxers', 'briefs', 'bra',
+    'pajamas', 'pyjamas', 'sleepwear', 'swimsuit', 'bikini', 'trunks',
+    'hat', 'cap', 'beanie', 'scarf', 'gloves', 'belt', 'tie', 'suit',
+    'blazer', 'cardigan', 'vest', 'leggings', 'tights', 'blouse', 'polo',
+    't-shirt', 'tshirt', 'tank top', 'tanktop', 'sweatshirt', 'sweatpants',
+    'joggers', 'tracksuit', 'raincoat', 'windbreaker', 'parka', 'fleece',
+    'thermal', 'base layer', 'compression', 'sports bra', 'athletic',
+    'workout clothes', 'gym clothes', 'running shorts', 'yoga pants'
+  ],
+  Shoes: [
+    'shoes', 'sneakers', 'boots', 'sandals', 'flip flops', 'flipflops',
+    'heels', 'flats', 'loafers', 'slippers', 'trainers', 'running shoes',
+    'hiking boots', 'dress shoes', 'oxfords', 'moccasins', 'espadrilles',
+    'wedges', 'pumps', 'cleats', 'crocs', 'slides'
+  ],
+  Toiletries: [
+    'toothbrush', 'toothpaste', 'floss', 'mouthwash', 'shampoo', 'conditioner',
+    'soap', 'body wash', 'deodorant', 'razor', 'shaving cream', 'aftershave',
+    'lotion', 'moisturizer', 'sunscreen', 'sunblock', 'lip balm', 'chapstick',
+    'makeup', 'mascara', 'lipstick', 'foundation', 'concealer', 'eyeliner',
+    'eyeshadow', 'blush', 'bronzer', 'primer', 'setting spray', 'makeup remover',
+    'face wash', 'cleanser', 'toner', 'serum', 'eye cream', 'face cream',
+    'hair gel', 'hair spray', 'mousse', 'hair oil', 'dry shampoo', 'comb',
+    'brush', 'hair dryer', 'straightener', 'curling iron', 'tweezers',
+    'nail clipper', 'nail file', 'cotton swabs', 'q-tips', 'cotton pads',
+    'tissues', 'wet wipes', 'hand sanitizer', 'perfume', 'cologne', 'fragrance',
+    'contact lens', 'contact solution', 'glasses', 'retainer'
+  ],
+  Electronics: [
+    'phone', 'charger', 'laptop', 'tablet', 'ipad', 'kindle', 'e-reader',
+    'camera', 'gopro', 'drone', 'headphones', 'earbuds', 'airpods', 'earphones',
+    'speaker', 'bluetooth', 'power bank', 'battery pack', 'portable charger',
+    'cable', 'usb', 'lightning', 'adapter', 'converter', 'plug adapter',
+    'extension cord', 'power strip', 'watch', 'smartwatch', 'fitbit',
+    'apple watch', 'garmin', 'tripod', 'selfie stick', 'sd card', 'memory card',
+    'hard drive', 'flash drive', 'usb drive', 'mouse', 'keyboard', 'monitor',
+    'gaming', 'nintendo', 'switch', 'controller', 'console', 'vr', 'oculus'
+  ],
+  Documents: [
+    'passport', 'id', 'license', 'drivers license', 'visa', 'boarding pass',
+    'ticket', 'itinerary', 'reservation', 'confirmation', 'insurance',
+    'travel insurance', 'credit card', 'debit card', 'cash', 'money', 'currency',
+    'wallet', 'purse', 'documents', 'papers', 'certificate', 'vaccination',
+    'vaccine card', 'covid', 'test results', 'prescription', 'medical records',
+    'emergency contacts', 'copies', 'photocopies'
+  ],
+  Medicine: [
+    'medicine', 'medication', 'pills', 'vitamins', 'supplements', 'aspirin',
+    'ibuprofen', 'tylenol', 'advil', 'painkiller', 'pain relief', 'antibiotic',
+    'allergy', 'antihistamine', 'benadryl', 'claritin', 'zyrtec', 'inhaler',
+    'epipen', 'insulin', 'prescription', 'first aid', 'bandaid', 'band-aid',
+    'bandage', 'gauze', 'antiseptic', 'neosporin', 'thermometer', 'cold medicine',
+    'cough drops', 'throat lozenges', 'antacid', 'tums', 'pepto', 'dramamine',
+    'motion sickness', 'melatonin', 'sleep aid', 'eye drops', 'nasal spray'
+  ],
+  Accessories: [
+    'jewelry', 'necklace', 'bracelet', 'earrings', 'ring', 'watch', 'sunglasses',
+    'glasses case', 'bag', 'backpack', 'purse', 'handbag', 'tote', 'duffel',
+    'luggage', 'suitcase', 'carry-on', 'packing cubes', 'travel pillow',
+    'neck pillow', 'eye mask', 'sleep mask', 'earplugs', 'umbrella', 'keychain',
+    'lanyard', 'wallet', 'money belt', 'fanny pack', 'crossbody'
+  ],
+  'Beach & Pool': [
+    'towel', 'beach towel', 'sunscreen', 'sunblock', 'sunglasses', 'hat',
+    'sun hat', 'beach bag', 'cooler', 'snorkel', 'goggles', 'fins', 'flippers',
+    'floatie', 'inflatable', 'beach chair', 'umbrella', 'beach umbrella',
+    'boogie board', 'surfboard', 'paddleboard', 'kayak', 'life jacket',
+    'rash guard', 'water shoes', 'reef safe', 'aloe', 'after sun'
+  ],
+  'Work & Office': [
+    'laptop', 'notebook', 'planner', 'pen', 'pencil', 'highlighter', 'marker',
+    'stapler', 'paper clips', 'sticky notes', 'post-it', 'folder', 'binder',
+    'business cards', 'portfolio', 'briefcase', 'work bag', 'lanyard',
+    'badge', 'name tag', 'presentation', 'usb', 'flash drive', 'charger'
+  ],
+  Entertainment: [
+    'book', 'books', 'magazine', 'journal', 'diary', 'cards', 'playing cards',
+    'games', 'board game', 'puzzle', 'coloring book', 'crayons', 'markers',
+    'sketchbook', 'drawing', 'knitting', 'crafts', 'music', 'instrument',
+    'guitar', 'ukulele', 'headphones', 'kindle', 'e-reader', 'tablet'
+  ],
+  Snacks: [
+    'snacks', 'food', 'granola', 'protein bar', 'energy bar', 'nuts', 'trail mix',
+    'chips', 'crackers', 'cookies', 'candy', 'chocolate', 'fruit', 'dried fruit',
+    'jerky', 'gum', 'mints', 'water bottle', 'drinks', 'coffee', 'tea'
+  ]
+};
+
+function detectCategory(itemName, existingCategories) {
+  const lowerName = itemName.toLowerCase();
+
+  // First check existing categories (prioritize user's categories)
+  for (const category of existingCategories) {
+    const keywords = categoryKeywords[category];
+    if (keywords) {
+      for (const keyword of keywords) {
+        if (lowerName.includes(keyword) || keyword.includes(lowerName)) {
+          return { category, isNew: false };
+        }
+      }
+    }
+  }
+
+  // Then check all categories for a match
+  for (const [category, keywords] of Object.entries(categoryKeywords)) {
+    for (const keyword of keywords) {
+      if (lowerName.includes(keyword) || keyword.includes(lowerName)) {
+        const isNew = !existingCategories.includes(category);
+        return { category, isNew };
+      }
+    }
+  }
+
+  // Default to Misc if no match found
+  const isNew = !existingCategories.includes('Misc');
+  return { category: 'Misc', isNew };
+}
+
 function CategorySection({
   category,
   items,
@@ -151,6 +273,7 @@ export default function PackingList() {
 
   const [categoryInputs, setCategoryInputs] = useState({});
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [quickAddInput, setQuickAddInput] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [collapsedCategories, setCollapsedCategories] = useState({});
@@ -309,6 +432,35 @@ export default function PackingList() {
     toggleItem(itemId);
   }, [toggleItem]);
 
+  const handleQuickAdd = async (e) => {
+    e.preventDefault();
+    const itemName = quickAddInput.trim();
+    if (!itemName) return;
+
+    // Clear input immediately for responsiveness
+    setQuickAddInput('');
+
+    // Detect the category
+    const { category, isNew } = detectCategory(itemName, settings.categories);
+
+    // Create the category if it doesn't exist
+    if (isNew) {
+      await updateSettings({
+        ...settings,
+        categories: [...settings.categories, category]
+      });
+    }
+
+    // Add the item
+    await addItem(itemName, category, []);
+
+    // Ensure the category is not collapsed so user can see the new item
+    setCollapsedCategories(prev => ({
+      ...prev,
+      [category]: false
+    }));
+  };
+
   const handleCategoryAdd = (category, e) => {
     e.preventDefault();
     const value = categoryInputs[category];
@@ -435,6 +587,15 @@ export default function PackingList() {
             </svg>
           </button>
         </div>
+
+        <form onSubmit={handleQuickAdd} className="quick-add">
+          <input
+            type="text"
+            placeholder="Add item (e.g., toothbrush, charger, passport)..."
+            value={quickAddInput}
+            onChange={(e) => setQuickAddInput(e.target.value)}
+          />
+        </form>
 
         <form onSubmit={handleAddCategory} className="new-category">
           <input

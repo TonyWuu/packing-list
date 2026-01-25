@@ -430,6 +430,33 @@
   box-shadow: 0 0 0 4px var(--primary-glow);
 }
 
+/* Quick add form */
+.quick-add {
+  margin-bottom: 12px;
+}
+
+.quick-add input {
+  width: 100%;
+  padding: 14px 18px;
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  font-size: 1rem;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-family: inherit;
+  box-shadow: var(--card-shadow);
+}
+
+.quick-add input::placeholder {
+  color: var(--text-muted);
+}
+
+.quick-add input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: var(--card-shadow), 0 0 0 4px var(--primary-glow);
+}
+
 /* New category form */
 .new-category {
   display: flex;
