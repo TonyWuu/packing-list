@@ -63,12 +63,23 @@
 .progress-section {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
   padding: 14px 16px;
   background: var(--card-bg);
   border-radius: 16px;
   box-shadow: var(--card-shadow);
+}
+
+.progress-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: 100%;
+  margin-bottom: -4px;
 }
 
 .progress-bar {
@@ -262,6 +273,38 @@
   padding: 2px 6px;
   border-radius: 10px;
   font-weight: 500;
+}
+
+.category-check-all {
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: opacity 0.2s, color 0.2s, background 0.2s;
+}
+
+.category:hover .category-check-all {
+  opacity: 1;
+}
+
+.category-check-all:hover {
+  background: var(--hover-bg);
+  color: var(--success-color);
+}
+
+.category-check-all.all-checked {
+  color: var(--success-color);
+  opacity: 1;
+}
+
+.category-check-all.some-checked {
+  color: var(--primary-color);
 }
 
 .category.collapsed .items,
@@ -750,7 +793,8 @@
   }
 
   .item-delete,
-  .category-delete {
+  .category-delete,
+  .category-check-all {
     opacity: 1;
   }
 }

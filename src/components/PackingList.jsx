@@ -180,8 +180,11 @@ function CategorySection({
   draggedItem,
   onCategoryDragStart,
   draggedCategory,
+  onToggleAllItems,
 }) {
   const checkedCount = items.filter(i => i.checked).length;
+  const allChecked = items.length > 0 && checkedCount === items.length;
+  const someChecked = checkedCount > 0 && checkedCount < items.length;
   const isDropTarget = draggedItem && draggedItem.category !== category;
   const isCategoryDropTarget = draggedCategory && draggedCategory !== category && !isUncategorized;
   const isCategoryDragging = draggedCategory === category;
@@ -240,6 +243,21 @@ function CategorySection({
           <span className="category-count">{checkedCount}/{items.length}</span>
         </div>
         <div className="category-header-right">
+          {items.length > 0 && (
+            <button
+              onClick={() => onToggleAllItems(category, !allChecked)}
+              className={`category-check-all ${allChecked ? 'all-checked' : ''} ${someChecked ? 'some-checked' : ''}`}
+              title={allChecked ? 'Unpack all' : 'Pack all'}
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                {allChecked ? (
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                ) : (
+                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM17.99 9l-1.41-1.42-6.59 6.59-2.58-2.57-1.42 1.41 4 3.99z"/>
+                )}
+              </svg>
+            </button>
+          )}
           {!isUncategorized && !isEditing && (
             <button
               onClick={() => handleDeleteCategory(category)}
@@ -495,6 +513,16 @@ export default function PackingList() {
     if (justDragged.current) return;
     toggleItem(itemId);
   }, [toggleItem]);
+
+  // Toggle all items in a category
+  const handleToggleAllItems = useCallback(async (category, checked) => {
+    const categoryItems = items.filter(item => item.category === category);
+    for (const item of categoryItems) {
+      if (item.checked !== checked) {
+        await updateItem(item.id, { checked });
+      }
+    }
+  }, [items, updateItem]);
 
   // Category drag handler
   const handleCategoryDragStart = useCallback((e, category) => {
@@ -763,6 +791,7 @@ export default function PackingList() {
         </div>
 
         <div className="progress-section">
+          <span className="progress-label">Packing Progress</span>
           <div className="progress-bar">
             <div
               className="progress-fill"
@@ -833,6 +862,7 @@ export default function PackingList() {
               draggedItem={draggedItem}
               onCategoryDragStart={handleCategoryDragStart}
               draggedCategory={draggedCategory}
+              onToggleAllItems={handleToggleAllItems}
             />
           );
         })}
