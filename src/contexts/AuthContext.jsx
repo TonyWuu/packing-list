@@ -95,15 +95,20 @@ export function AuthProvider({ children }) {
       // Set persistence before sign in
       await setPersistence(auth, browserLocalPersistence);
 
-      // For mobile browsers, use redirect (works better than popup)
-      // Note: iOS standalone PWA is handled in the Login component
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Store a flag to know we're expecting a redirect
-        sessionStorage.setItem('authRedirectPending', 'true');
-        await signInWithRedirect(auth, googleProvider);
-      } else {
-        // Desktop: use popup
+      // Try popup first (works on most browsers including mobile Safari)
+      // Fall back to redirect if popup is blocked
+      try {
         await signInWithPopup(auth, googleProvider);
+      } catch (popupError) {
+        console.log('Popup failed, trying redirect:', popupError.code);
+        // If popup was blocked or failed, try redirect
+        if (popupError.code === 'auth/popup-blocked' ||
+            popupError.code === 'auth/popup-closed-by-user' ||
+            popupError.code === 'auth/cancelled-popup-request') {
+          await signInWithRedirect(auth, googleProvider);
+        } else {
+          throw popupError;
+        }
       }
     } catch (error) {
       console.error('Login error:', error);
