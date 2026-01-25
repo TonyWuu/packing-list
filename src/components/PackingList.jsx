@@ -1,8 +1,66 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  TouchSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { usePackingList } from '../hooks/usePackingList';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import './PackingList.css';
+
+function DraggableItem({ item, isOverlay = false }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id: item.id,
+    data: { item },
+  });
+
+  const style = transform && !isOverlay ? {
+    transform: CSS.Translate.toString(transform),
+  } : undefined;
+
+  if (isOverlay) {
+    return (
+      <div className="item item-overlay">
+        <span className="drag-handle">⋮⋮</span>
+        <label>
+          <input type="checkbox" checked={item.checked} readOnly />
+          <span className="item-name">{item.name}</span>
+        </label>
+      </div>
+    );
+  }
+
+  return { setNodeRef, style, isDragging, attributes, listeners };
+}
+
+function DroppableCategory({ category, children, isDragOver }) {
+  const { setNodeRef } = useDroppable({
+    id: `category-${category}`,
+    data: { category },
+  });
+
+  return (
+    <section
+      ref={setNodeRef}
+      className={`category ${isDragOver ? 'drag-over' : ''}`}
+    >
+      {children}
+    </section>
+  );
+}
 
 export default function PackingList() {
   const { logout } = useAuth();
@@ -19,7 +77,6 @@ export default function PackingList() {
     resetAllChecks,
     updateSettings,
     generateShareToken,
-    revokeShareToken
   } = usePackingList();
 
   const [quickAddValue, setQuickAddValue] = useState('');
@@ -27,15 +84,24 @@ export default function PackingList() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
-  const [draggedItem, setDraggedItem] = useState(null);
-  const [dragOverCategory, setDragOverCategory] = useState(null);
-  const [touchDragging, setTouchDragging] = useState(false);
+  const [activeItem, setActiveItem] = useState(null);
+  const [overCategory, setOverCategory] = useState(null);
 
-  const categoryRefs = useRef({});
-  const touchStartPos = useRef(null);
-  const draggedElement = useRef(null);
-  const touchTimeout = useRef(null);
-  const containerRef = useRef(null);
+  // Touch sensor with delay for long press, pointer sensor for desktop
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 300,
+      tolerance: 8,
+    },
+  });
+
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 8,
+    },
+  });
+
+  const sensors = useSensors(touchSensor, pointerSensor);
 
   // Group items by category
   const groupedItems = useMemo(() => {
@@ -57,6 +123,43 @@ export default function PackingList() {
 
     return groups;
   }, [items, settings.categories]);
+
+  const handleDragStart = (event) => {
+    const { active } = event;
+    setActiveItem(active.data.current.item);
+    // Haptic feedback
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+  };
+
+  const handleDragOver = (event) => {
+    const { over } = event;
+    if (over?.data?.current?.category) {
+      setOverCategory(over.data.current.category);
+    } else {
+      setOverCategory(null);
+    }
+  };
+
+  const handleDragEnd = async (event) => {
+    const { over } = event;
+
+    if (over?.data?.current?.category && activeItem) {
+      const newCategory = over.data.current.category;
+      if (activeItem.category !== newCategory) {
+        await updateItem(activeItem.id, { category: newCategory });
+      }
+    }
+
+    setActiveItem(null);
+    setOverCategory(null);
+  };
+
+  const handleDragCancel = () => {
+    setActiveItem(null);
+    setOverCategory(null);
+  };
 
   const handleQuickAdd = async (e) => {
     e.preventDefault();
@@ -120,125 +223,6 @@ export default function PackingList() {
     setEditingCategoryName(category);
   };
 
-  // Desktop drag handlers
-  const handleDragStart = (e, item) => {
-    setDraggedItem(item);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e, category) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverCategory(category);
-  };
-
-  const handleDragLeave = () => {
-    setDragOverCategory(null);
-  };
-
-  const handleDrop = async (e, category) => {
-    e.preventDefault();
-    setDragOverCategory(null);
-    if (draggedItem && draggedItem.category !== category) {
-      await updateItem(draggedItem.id, { category });
-    }
-    setDraggedItem(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedItem(null);
-    setDragOverCategory(null);
-  };
-
-  // Touch drag handlers for mobile
-  const handleTouchStart = useCallback((e, item) => {
-    const touch = e.touches[0];
-    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
-    draggedElement.current = e.currentTarget;
-
-    // Clear any existing timeout
-    if (touchTimeout.current) {
-      clearTimeout(touchTimeout.current);
-    }
-
-    // Delay to distinguish from scroll - longer press to activate drag
-    touchTimeout.current = setTimeout(() => {
-      setDraggedItem(item);
-      setTouchDragging(true);
-      if (draggedElement.current) {
-        draggedElement.current.classList.add('touch-dragging');
-      }
-      // Vibrate if available to indicate drag started
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-    }, 400);
-  }, []);
-
-  const handleTouchEnd = useCallback(async () => {
-    // Clear the timeout
-    if (touchTimeout.current) {
-      clearTimeout(touchTimeout.current);
-      touchTimeout.current = null;
-    }
-
-    if (draggedElement.current) {
-      draggedElement.current.classList.remove('touch-dragging');
-    }
-
-    if (touchDragging && draggedItem && dragOverCategory) {
-      if (draggedItem.category !== dragOverCategory) {
-        await updateItem(draggedItem.id, { category: dragOverCategory });
-      }
-    }
-
-    setDraggedItem(null);
-    setDragOverCategory(null);
-    setTouchDragging(false);
-    touchStartPos.current = null;
-    draggedElement.current = null;
-  }, [touchDragging, draggedItem, dragOverCategory, updateItem]);
-
-  // Attach touchmove with { passive: false } to allow preventDefault
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handler = (e) => {
-      const touch = e.touches[0];
-
-      // Cancel drag activation if user moves too much before timeout
-      if (touchTimeout.current && touchStartPos.current) {
-        const dx = Math.abs(touch.clientX - touchStartPos.current.x);
-        const dy = Math.abs(touch.clientY - touchStartPos.current.y);
-        if (dx > 10 || dy > 10) {
-          clearTimeout(touchTimeout.current);
-          touchTimeout.current = null;
-        }
-      }
-
-      if (!touchDragging || !draggedItem) return;
-
-      // Prevent scrolling while dragging
-      e.preventDefault();
-
-      const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
-
-      let foundCategory = null;
-      for (const el of elements) {
-        if (el.dataset.category) {
-          foundCategory = el.dataset.category;
-          break;
-        }
-      }
-
-      setDragOverCategory(foundCategory);
-    };
-
-    container.addEventListener('touchmove', handler, { passive: false });
-    return () => container.removeEventListener('touchmove', handler);
-  }, [touchDragging, draggedItem]);
-
   const handleShare = async () => {
     if (shareToken) {
       await navigator.clipboard.writeText(
@@ -267,7 +251,7 @@ export default function PackingList() {
   }
 
   return (
-    <div className="packing-list" ref={containerRef} onTouchEnd={handleTouchEnd}>
+    <div className="packing-list">
       <header className="header">
         <div className="header-top">
           <h1>Packing List</h1>
@@ -322,125 +306,164 @@ export default function PackingList() {
         </form>
       </header>
 
-      <main className="categories">
-        {allCategories.map(category => {
-          const categoryItems = groupedItems[category] || [];
-          const isUncategorized = category === 'Uncategorized';
-          const isDragOver = dragOverCategory === category;
-          const isEditing = editingCategory === category;
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <main className="categories">
+          {allCategories.map(category => {
+            const categoryItems = groupedItems[category] || [];
+            const isUncategorized = category === 'Uncategorized';
+            const isDragOver = overCategory === category;
+            const isEditing = editingCategory === category;
 
-          return (
-            <section
-              key={category}
-              ref={el => categoryRefs.current[category] = el}
-              data-category={category}
-              className={`category ${isDragOver ? 'drag-over' : ''}`}
-              onDragOver={(e) => handleDragOver(e, category)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, category)}
-            >
-              <div className="category-header">
-                {isEditing ? (
-                  <input
-                    type="text"
-                    className="category-edit-input"
-                    value={editingCategoryName}
-                    onChange={(e) => setEditingCategoryName(e.target.value)}
-                    onBlur={() => handleRenameCategory(category)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleRenameCategory(category);
-                      if (e.key === 'Escape') setEditingCategory(null);
-                    }}
-                    autoFocus
-                  />
-                ) : (
-                  <h2
-                    className="category-name"
-                    onClick={() => !isUncategorized && startEditingCategory(category)}
-                    title={isUncategorized ? '' : 'Click to rename'}
-                  >
-                    {category}
-                    {!isUncategorized && <span className="edit-hint">✎</span>}
-                  </h2>
-                )}
-                {!isUncategorized && !isEditing && (
-                  <button
-                    onClick={() => handleDeleteCategory(category)}
-                    className="category-delete"
-                    title="Delete category"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-
-              <ul className="items">
-                {categoryItems.map(item => (
-                  <li
-                    key={item.id}
-                    className={`item ${item.checked ? 'checked' : ''} ${draggedItem?.id === item.id ? 'dragging' : ''}`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, item)}
-                    onDragEnd={handleDragEnd}
-                    onTouchStart={(e) => handleTouchStart(e, item)}
-                  >
-                    <span className="drag-handle">⋮⋮</span>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={item.checked}
-                        onChange={() => toggleItem(item.id)}
-                      />
-                      <span className="item-name">{item.name}</span>
-                    </label>
+            return (
+              <DroppableCategory
+                key={category}
+                category={category}
+                isDragOver={isDragOver}
+              >
+                <div className="category-header">
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      className="category-edit-input"
+                      value={editingCategoryName}
+                      onChange={(e) => setEditingCategoryName(e.target.value)}
+                      onBlur={() => handleRenameCategory(category)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRenameCategory(category);
+                        if (e.key === 'Escape') setEditingCategory(null);
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <h2
+                      className="category-name"
+                      onClick={() => !isUncategorized && startEditingCategory(category)}
+                      title={isUncategorized ? '' : 'Click to rename'}
+                    >
+                      {category}
+                      {!isUncategorized && <span className="edit-hint">✎</span>}
+                    </h2>
+                  )}
+                  {!isUncategorized && !isEditing && (
                     <button
-                      onClick={() => deleteItem(item.id)}
-                      className="item-delete"
+                      onClick={() => handleDeleteCategory(category)}
+                      className="category-delete"
+                      title="Delete category"
                     >
                       ×
                     </button>
-                  </li>
-                ))}
-              </ul>
+                  )}
+                </div>
 
-              {!isUncategorized && (
-                <form
-                  onSubmit={(e) => handleCategoryAdd(category, e)}
-                  className="category-add"
-                >
-                  <input
-                    type="text"
-                    placeholder="Add item..."
-                    value={categoryInputs[category] || ''}
-                    onChange={(e) => setCategoryInputs(prev => ({
-                      ...prev,
-                      [category]: e.target.value
-                    }))}
-                  />
-                </form>
-              )}
-            </section>
-          );
-        })}
+                <ul className="items">
+                  {categoryItems.map(item => (
+                    <DraggableItemRow
+                      key={item.id}
+                      item={item}
+                      activeItem={activeItem}
+                      toggleItem={toggleItem}
+                      deleteItem={deleteItem}
+                    />
+                  ))}
+                </ul>
 
-        <form onSubmit={handleAddCategory} className="new-category">
-          <input
-            type="text"
-            placeholder="New category name..."
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-          />
-          <button type="submit" disabled={!newCategoryName.trim()}>
-            + Add Category
-          </button>
-        </form>
-      </main>
+                {!isUncategorized && (
+                  <form
+                    onSubmit={(e) => handleCategoryAdd(category, e)}
+                    className="category-add"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Add item..."
+                      value={categoryInputs[category] || ''}
+                      onChange={(e) => setCategoryInputs(prev => ({
+                        ...prev,
+                        [category]: e.target.value
+                      }))}
+                    />
+                  </form>
+                )}
+              </DroppableCategory>
+            );
+          })}
 
-      {touchDragging && draggedItem && (
-        <div className="touch-drag-indicator">
-          Moving: {draggedItem.name}
-        </div>
-      )}
+          <form onSubmit={handleAddCategory} className="new-category">
+            <input
+              type="text"
+              placeholder="New category name..."
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+            />
+            <button type="submit" disabled={!newCategoryName.trim()}>
+              + Add Category
+            </button>
+          </form>
+        </main>
+
+        <DragOverlay dropAnimation={{
+          duration: 200,
+          easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+        }}>
+          {activeItem ? (
+            <div className="item item-overlay">
+              <span className="drag-handle">⋮⋮</span>
+              <label>
+                <input type="checkbox" checked={activeItem.checked} readOnly />
+                <span className="item-name">{activeItem.name}</span>
+              </label>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
+  );
+}
+
+function DraggableItemRow({ item, activeItem, toggleItem, deleteItem }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id: item.id,
+    data: { item },
+  });
+
+  const style = transform ? {
+    transform: CSS.Translate.toString(transform),
+  } : undefined;
+
+  const isBeingDragged = activeItem?.id === item.id;
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`item ${item.checked ? 'checked' : ''} ${isBeingDragged ? 'dragging' : ''}`}
+    >
+      <span className="drag-handle" {...listeners} {...attributes}>⋮⋮</span>
+      <label>
+        <input
+          type="checkbox"
+          checked={item.checked}
+          onChange={() => toggleItem(item.id)}
+        />
+        <span className="item-name">{item.name}</span>
+      </label>
+      <button
+        onClick={() => deleteItem(item.id)}
+        className="item-delete"
+      >
+        ×
+      </button>
+    </li>
   );
 }
