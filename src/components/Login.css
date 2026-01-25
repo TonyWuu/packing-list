@@ -151,14 +151,18 @@
 
 .email-input {
   width: 100%;
-  padding: 14px 18px;
+  padding: 16px 18px;
   border: 2px solid var(--border-color);
   border-radius: 14px;
-  font-size: 1rem;
+  font-size: 16px; /* Prevents iOS zoom on focus */
   font-family: inherit;
   background: var(--card-bg);
   color: var(--text-primary);
   box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .email-input:focus {
@@ -169,6 +173,7 @@
 
 .email-input::placeholder {
   color: var(--text-muted);
+  opacity: 1;
 }
 
 .email-btn {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './Login.css';
 
@@ -13,6 +13,18 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [showEmailForm, setShowEmailForm] = useState(isStandalonePWA());
   const [sendingEmail, setSendingEmail] = useState(false);
+  const emailInputRef = useRef(null);
+
+  // Focus email input when form is shown (with delay for iOS)
+  useEffect(() => {
+    if (showEmailForm && emailInputRef.current) {
+      // Small delay helps iOS PWA recognize the input
+      const timer = setTimeout(() => {
+        emailInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [showEmailForm]);
 
   const handleLogin = async () => {
     try {
@@ -64,13 +76,18 @@ export default function Login() {
           <div className="email-form">
             <form onSubmit={handleEmailSubmit}>
               <input
+                ref={emailInputRef}
                 type="email"
-                placeholder="Enter your email"
+                inputMode="email"
+                placeholder="Tap here to enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onTouchStart={(e) => e.target.focus()}
                 className="email-input"
                 autoComplete="email"
-                autoFocus
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
               />
               <button
                 type="submit"
