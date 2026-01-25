@@ -15,37 +15,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import './PackingList.css';
 
-function DraggableItem({ item, isOverlay = false }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging,
-  } = useDraggable({
-    id: item.id,
-    data: { item },
-  });
-
-  const style = transform && !isOverlay ? {
-    transform: CSS.Translate.toString(transform),
-  } : undefined;
-
-  if (isOverlay) {
-    return (
-      <div className="item item-overlay">
-        <span className="drag-handle">⋮⋮</span>
-        <label>
-          <input type="checkbox" checked={item.checked} readOnly />
-          <span className="item-name">{item.name}</span>
-        </label>
-      </div>
-    );
-  }
-
-  return { setNodeRef, style, isDragging, attributes, listeners };
-}
-
 function DroppableCategory({ category, children, isDragOver }) {
   const { setNodeRef } = useDroppable({
     id: `category-${category}`,
@@ -412,7 +381,6 @@ export default function PackingList() {
         }}>
           {activeItem ? (
             <div className="item item-overlay">
-              <span className="drag-handle">⋮⋮</span>
               <label>
                 <input type="checkbox" checked={activeItem.checked} readOnly />
                 <span className="item-name">{activeItem.name}</span>
@@ -448,9 +416,10 @@ function DraggableItemRow({ item, activeItem, toggleItem, deleteItem }) {
       ref={setNodeRef}
       style={style}
       className={`item ${item.checked ? 'checked' : ''} ${isBeingDragged ? 'dragging' : ''}`}
+      {...listeners}
+      {...attributes}
     >
-      <span className="drag-handle" {...listeners} {...attributes}>⋮⋮</span>
-      <label>
+      <label onClick={(e) => e.stopPropagation()}>
         <input
           type="checkbox"
           checked={item.checked}
@@ -459,7 +428,10 @@ function DraggableItemRow({ item, activeItem, toggleItem, deleteItem }) {
         <span className="item-name">{item.name}</span>
       </label>
       <button
-        onClick={() => deleteItem(item.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          deleteItem(item.id);
+        }}
         className="item-delete"
       >
         ×
