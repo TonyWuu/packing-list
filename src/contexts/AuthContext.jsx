@@ -16,14 +16,6 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-// Detect if we're on a mobile device or in standalone PWA mode
-const isMobileOrPWA = () => {
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-    window.navigator.standalone === true;
-  return isMobile || isStandalone;
-};
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +34,10 @@ export function AuthProvider({ children }) {
       })
       .catch((error) => {
         console.error('Redirect result error:', error);
-        setError(error.message);
+        // Don't show error for redirect cancelled/closed
+        if (error.code !== 'auth/redirect-cancelled-by-user') {
+          setError(error.message);
+        }
       });
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -58,10 +53,12 @@ export function AuthProvider({ children }) {
       // Set persistence before sign in
       await setPersistence(auth, browserLocalPersistence);
 
-      // Use redirect on mobile/PWA (popup doesn't work well)
-      if (isMobileOrPWA()) {
+      // For mobile browsers, use redirect (works better than popup)
+      // Note: iOS standalone PWA is handled in the Login component
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         await signInWithRedirect(auth, googleProvider);
       } else {
+        // Desktop: use popup
         await signInWithPopup(auth, googleProvider);
       }
     } catch (error) {
