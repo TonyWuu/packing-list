@@ -224,7 +224,6 @@ export default function PackingList() {
   const handleDragOver = (event) => {
     const { active, over } = event;
     if (!over || !localItems) {
-      setOverCategory(null);
       return;
     }
 
@@ -239,12 +238,9 @@ export default function PackingList() {
     if (overData?.item) {
       targetCategory = overData.item.category;
       overItemId = over.id;
-    } else if (over.id.toString().startsWith('category-')) {
-      targetCategory = over.id.toString().replace('category-', '');
     }
 
     if (!targetCategory) {
-      setOverCategory(null);
       return;
     }
 
@@ -254,49 +250,52 @@ export default function PackingList() {
     const activeIndex = localItems.findIndex(i => i.id === active.id);
     if (activeIndex === -1) return;
 
-    const currentCategory = localItems[activeIndex].category;
+    const currentItem = localItems[activeIndex];
+    const currentCategory = currentItem.category;
 
-    // If moving to a different category or different position
-    if (currentCategory !== targetCategory || overItemId) {
-      const newItems = [...localItems];
-      const [movedItem] = newItems.splice(activeIndex, 1);
-      movedItem.category = targetCategory;
+    // Skip if hovering over itself
+    if (overItemId === active.id) return;
 
-      // Find where to insert
-      if (overItemId) {
-        const overIndex = newItems.findIndex(i => i.id === overItemId);
-        if (overIndex !== -1) {
-          newItems.splice(overIndex, 0, movedItem);
-        } else {
-          newItems.push(movedItem);
-        }
-      } else {
-        // Add to end of category
-        const categoryItems = newItems.filter(i => i.category === targetCategory);
-        const lastCategoryItemIndex = categoryItems.length > 0
-          ? newItems.findIndex(i => i.id === categoryItems[categoryItems.length - 1].id)
-          : -1;
-        if (lastCategoryItemIndex !== -1) {
-          newItems.splice(lastCategoryItemIndex + 1, 0, movedItem);
-        } else {
-          newItems.push(movedItem);
+    // Check if we need to move
+    const overIndex = overItemId ? localItems.findIndex(i => i.id === overItemId) : -1;
+
+    // Only update if actually changing position
+    if (currentCategory === targetCategory && overIndex === activeIndex) return;
+
+    // Create new items array with the move applied
+    const newItems = localItems.map(item => ({ ...item })); // Deep copy
+    const movedItem = { ...newItems[activeIndex], category: targetCategory };
+    newItems.splice(activeIndex, 1);
+
+    // Find where to insert
+    if (overItemId && overIndex !== -1) {
+      // Adjust index since we removed an item
+      const adjustedIndex = overIndex > activeIndex ? overIndex - 1 : overIndex;
+      newItems.splice(adjustedIndex, 0, movedItem);
+    } else {
+      // Add to end of category
+      let insertIndex = newItems.length;
+      for (let i = newItems.length - 1; i >= 0; i--) {
+        if (newItems[i].category === targetCategory) {
+          insertIndex = i + 1;
+          break;
         }
       }
-
-      // Update order values for affected categories
-      const affectedCategories = new Set([currentCategory, targetCategory]);
-      affectedCategories.forEach(cat => {
-        const catItems = newItems.filter(i => i.category === cat);
-        catItems.forEach((item, idx) => {
-          const itemIndex = newItems.findIndex(i => i.id === item.id);
-          if (itemIndex !== -1) {
-            newItems[itemIndex] = { ...newItems[itemIndex], order: idx };
-          }
-        });
-      });
-
-      setLocalItems(newItems);
+      newItems.splice(insertIndex, 0, movedItem);
     }
+
+    // Update order values for affected categories
+    const affectedCategories = new Set([currentCategory, targetCategory]);
+    affectedCategories.forEach(cat => {
+      let order = 0;
+      newItems.forEach((item, idx) => {
+        if (item.category === cat) {
+          newItems[idx] = { ...newItems[idx], order: order++ };
+        }
+      });
+    });
+
+    setLocalItems(newItems);
   };
 
   const handleDragEnd = async (event) => {
