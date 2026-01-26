@@ -13,16 +13,23 @@
   --bg-color: #faf8f5;
   --bg-gradient: linear-gradient(135deg, #faf8f5 0%, #f0ebe3 100%);
   --card-bg: #ffffff;
-  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 4px 24px rgba(0, 0, 0, 0.06);
-  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 32px rgba(0, 0, 0, 0.1);
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 20px rgba(0, 0, 0, 0.05);
+  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 32px rgba(0, 0, 0, 0.08);
   --text-primary: #1f2937;
   --text-secondary: #6b7280;
   --text-muted: #9ca3af;
-  --border-color: #e5e7eb;
+  --border-color: rgba(0, 0, 0, 0.08);
   --hover-bg: rgba(99, 102, 241, 0.06);
   --secondary-bg: #f3f4f6;
   --success-color: #10b981;
   --success-bg: rgba(16, 185, 129, 0.1);
+
+  /* Consistent radius scale */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
 }
 
 [data-theme="dark"] {
@@ -34,19 +41,26 @@
   --accent-green: #34d399;
   --accent-blue: #60a5fa;
   --accent-purple: #a78bfa;
-  --bg-color: #111111;
-  --bg-gradient: linear-gradient(135deg, #111111 0%, #1a1a2e 100%);
-  --card-bg: #1e1e1e;
-  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 4px 24px rgba(0, 0, 0, 0.4);
-  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(0, 0, 0, 0.5);
+  --bg-color: #0f0f0f;
+  --bg-gradient: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%);
+  --card-bg: #1a1a1a;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 20px rgba(0, 0, 0, 0.3);
+  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(0, 0, 0, 0.4);
   --text-primary: #f9fafb;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
-  --border-color: #374151;
-  --hover-bg: rgba(129, 140, 248, 0.1);
-  --secondary-bg: #2d2d2d;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --hover-bg: rgba(129, 140, 248, 0.12);
+  --secondary-bg: #262626;
   --success-color: #34d399;
   --success-bg: rgba(52, 211, 153, 0.15);
+
+  /* Consistent radius scale */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
 }
 
 * {
