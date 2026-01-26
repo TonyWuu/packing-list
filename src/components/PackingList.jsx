@@ -350,6 +350,8 @@ export default function PackingList() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [collapsedCategories, setCollapsedCategories] = useState({});
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const addCategoryInputRef = useRef(null);
 
   // Celebration state
   const [showCelebration, setShowCelebration] = useState(false);
@@ -742,7 +744,15 @@ export default function PackingList() {
       categories: [...settings.categories, newCategoryName.trim()]
     });
     setNewCategoryName('');
+    setShowAddCategory(false);
   };
+
+  // Focus input when showing add category
+  useEffect(() => {
+    if (showAddCategory && addCategoryInputRef.current) {
+      addCategoryInputRef.current.focus();
+    }
+  }, [showAddCategory]);
 
   const handleDeleteCategory = async (category) => {
     if (!confirm(`Delete "${category}"? Items will move to Uncategorized.`)) return;
@@ -838,6 +848,15 @@ export default function PackingList() {
                 </svg>
               )}
             </button>
+            <button
+              onClick={() => setShowAddCategory(!showAddCategory)}
+              className={`icon-btn ${showAddCategory ? 'active' : ''}`}
+              title="Add category"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+              </svg>
+            </button>
             <button onClick={handleShare} className="icon-btn" title="Share">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                 <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
@@ -876,17 +895,41 @@ export default function PackingList() {
           />
         </form>
 
-        <form onSubmit={handleAddCategory} className="new-category">
-          <input
-            type="text"
-            placeholder="New category name..."
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-          />
-          <button type="submit" disabled={!newCategoryName.trim()}>
-            + Add
-          </button>
-        </form>
+        {showAddCategory && (
+          <form onSubmit={handleAddCategory} className="add-category-inline">
+            <input
+              ref={addCategoryInputRef}
+              type="text"
+              placeholder="New category name..."
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onBlur={() => {
+                if (!newCategoryName.trim()) {
+                  setShowAddCategory(false);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setNewCategoryName('');
+                  setShowAddCategory(false);
+                }
+              }}
+            />
+            <button type="submit" disabled={!newCategoryName.trim()}>
+              Add
+            </button>
+            <button
+              type="button"
+              className="cancel-btn"
+              onClick={() => {
+                setNewCategoryName('');
+                setShowAddCategory(false);
+              }}
+            >
+              ×
+            </button>
+          </form>
+        )}
       </header>
 
       <main className="categories" ref={categoriesContainerRef}>
