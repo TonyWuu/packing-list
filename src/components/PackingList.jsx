@@ -743,6 +743,8 @@ export default function PackingList() {
           document.removeEventListener('touchend', handleTouchEnd);
           return;
         }
+        // Prevent scrolling while dragging category
+        moveEvent.preventDefault();
         setCategoryDragPos({ x: t.clientX, y: t.clientY });
         updatePreviewOrder(category, t.clientX, t.clientY);
         startAutoScroll(t.clientY);
@@ -790,7 +792,7 @@ export default function PackingList() {
         setCollapsedCategories(allCollapsed);
       }, 300);
 
-      document.addEventListener('touchmove', handleTouchMove, { passive: true });
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
       document.addEventListener('touchend', handleTouchEnd);
       return;
     }
