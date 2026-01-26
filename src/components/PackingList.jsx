@@ -394,6 +394,7 @@ export default function PackingList() {
     reorderItems,
     updateSettings,
     generateShareToken,
+    batchUpdateItems,
   } = usePackingList();
 
   const [categoryInputs, setCategoryInputs] = useState({});
@@ -689,13 +690,12 @@ export default function PackingList() {
 
   // Toggle all items in a category
   const handleToggleAllItems = useCallback(async (category, checked) => {
-    const categoryItems = items.filter(item => item.category === category);
-    for (const item of categoryItems) {
-      if (item.checked !== checked) {
-        await updateItem(item.id, { checked });
-      }
+    const categoryItems = items.filter(item => item.category === category && item.checked !== checked);
+    const itemIds = categoryItems.map(item => item.id);
+    if (itemIds.length > 0) {
+      await batchUpdateItems(itemIds, { checked });
     }
-  }, [items, updateItem]);
+  }, [items, batchUpdateItems]);
 
   // Update preview category order based on current drag position
   const updatePreviewOrder = useCallback((draggedCat, x, y) => {

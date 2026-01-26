@@ -127,6 +127,16 @@ export function usePackingList() {
     await batch.commit();
   };
 
+  const batchUpdateItems = async (itemIds, updates) => {
+    if (!user || itemIds.length === 0) return;
+    const batch = writeBatch(db);
+    itemIds.forEach(id => {
+      const itemRef = doc(db, 'users', user.uid, 'items', id);
+      batch.update(itemRef, updates);
+    });
+    await batch.commit();
+  };
+
   const updateSettings = async (newSettings) => {
     if (!user) return;
     const settingsRef = doc(db, 'users', user.uid, 'config', 'settings');
@@ -165,6 +175,7 @@ export function usePackingList() {
     toggleItem,
     resetAllChecks,
     reorderItems,
+    batchUpdateItems,
     updateSettings,
     generateShareToken,
     revokeShareToken
