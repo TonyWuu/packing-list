@@ -471,6 +471,7 @@ export default function PackingList() {
   const isCategoryDragging = useRef(false);
   const categoriesContainerRef = useRef(null);
   const categoryPositions = useRef({});
+  const preDragCollapsedRef = useRef(null); // Store collapsed state before category drag
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -762,6 +763,12 @@ export default function PackingList() {
             updateSettings({ ...settings, categories: finalOrder });
           }
 
+          // Restore collapsed state
+          if (preDragCollapsedRef.current) {
+            setCollapsedCategories(preDragCollapsedRef.current);
+            preDragCollapsedRef.current = null;
+          }
+
           isCategoryDragging.current = false;
           setPreviewCategoryOrder(null);
           setTimeout(() => setDraggedCategory(null), 100);
@@ -776,6 +783,11 @@ export default function PackingList() {
         if (navigator.vibrate) navigator.vibrate(30);
         document.body.style.touchAction = 'none';
         document.body.style.overflow = 'hidden';
+        // Collapse all categories for easier reordering
+        preDragCollapsedRef.current = { ...collapsedCategories };
+        const allCollapsed = {};
+        settings.categories.forEach(cat => { allCollapsed[cat] = true; });
+        setCollapsedCategories(allCollapsed);
       }, 300);
 
       document.addEventListener('touchmove', handleTouchMove, { passive: true });
@@ -807,6 +819,12 @@ export default function PackingList() {
           updateSettings({ ...settings, categories: finalOrder });
         }
 
+        // Restore collapsed state
+        if (preDragCollapsedRef.current) {
+          setCollapsedCategories(preDragCollapsedRef.current);
+          preDragCollapsedRef.current = null;
+        }
+
         isCategoryDragging.current = false;
         setPreviewCategoryOrder(null);
         setTimeout(() => setDraggedCategory(null), 100);
@@ -818,11 +836,16 @@ export default function PackingList() {
       setDraggedCategory(category);
       setPreviewCategoryOrder(settings.categories);
       setCategoryDragPos({ x: clientX, y: clientY });
+      // Collapse all categories for easier reordering
+      preDragCollapsedRef.current = { ...collapsedCategories };
+      const allCollapsed = {};
+      settings.categories.forEach(cat => { allCollapsed[cat] = true; });
+      setCollapsedCategories(allCollapsed);
     }, 150);
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [settings, updateSettings, updatePreviewOrder, startAutoScroll, stopAutoScroll]);
+  }, [settings, updateSettings, updatePreviewOrder, startAutoScroll, stopAutoScroll, collapsedCategories]);
 
   const handleQuickAdd = async (e) => {
     e.preventDefault();
