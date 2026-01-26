@@ -151,6 +151,7 @@
   padding: 14px;
   border: 1px solid var(--border-color);
   box-shadow: var(--card-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
 .category:hover {

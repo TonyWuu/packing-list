@@ -365,6 +365,7 @@ export default function PackingList() {
   // Category drag state
   const [draggedCategory, setDraggedCategory] = useState(null);
   const [categoryDragPos, setCategoryDragPos] = useState({ x: 0, y: 0 });
+  const [previewCategoryOrder, setPreviewCategoryOrder] = useState(null);
   const categoryDragTimeout = useRef(null);
   const isCategoryDragging = useRef(false);
 
@@ -525,6 +526,26 @@ export default function PackingList() {
     }
   }, [items, updateItem]);
 
+  // Update preview category order based on current drag position
+  const updatePreviewOrder = useCallback((draggedCat, x, y) => {
+    const elementUnder = document.elementFromPoint(x, y);
+    const categorySection = elementUnder?.closest('[data-category]');
+    const targetCategory = categorySection?.dataset.category;
+
+    if (targetCategory && targetCategory !== draggedCat && targetCategory !== 'Uncategorized') {
+      const currentOrder = previewCategoryOrder || settings.categories;
+      const oldIndex = currentOrder.indexOf(draggedCat);
+      const newIndex = currentOrder.indexOf(targetCategory);
+
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        const newOrder = [...currentOrder];
+        newOrder.splice(oldIndex, 1);
+        newOrder.splice(newIndex, 0, draggedCat);
+        setPreviewCategoryOrder(newOrder);
+      }
+    }
+  }, [settings.categories, previewCategoryOrder]);
+
   // Category drag handler
   const handleCategoryDragStart = useCallback((e, category) => {
     // Ignore if it's not the drag handle
@@ -547,6 +568,7 @@ export default function PackingList() {
           return;
         }
         setCategoryDragPos({ x: t.clientX, y: t.clientY });
+        updatePreviewOrder(category, t.clientX, t.clientY);
       };
 
       const handleTouchEnd = () => {
@@ -557,24 +579,13 @@ export default function PackingList() {
         document.body.style.overflow = '';
 
         if (isCategoryDragging.current) {
-          // Find the target category
-          const elementUnder = document.elementFromPoint(lastTouchPos.x, lastTouchPos.y);
-          const categorySection = elementUnder?.closest('[data-category]');
-          const targetCategory = categorySection?.dataset.category;
-
-          if (targetCategory && targetCategory !== category && targetCategory !== 'Uncategorized') {
-            // Reorder categories
-            const oldIndex = settings.categories.indexOf(category);
-            const newIndex = settings.categories.indexOf(targetCategory);
-            if (oldIndex !== -1 && newIndex !== -1) {
-              const newCategories = [...settings.categories];
-              newCategories.splice(oldIndex, 1);
-              newCategories.splice(newIndex, 0, category);
-              updateSettings({ ...settings, categories: newCategories });
-            }
+          // Save the preview order as the final order
+          if (previewCategoryOrder) {
+            updateSettings({ ...settings, categories: previewCategoryOrder });
           }
 
           isCategoryDragging.current = false;
+          setPreviewCategoryOrder(null);
           setTimeout(() => setDraggedCategory(null), 100);
         }
       };
@@ -582,6 +593,7 @@ export default function PackingList() {
       categoryDragTimeout.current = setTimeout(() => {
         isCategoryDragging.current = true;
         setDraggedCategory(category);
+        setPreviewCategoryOrder(settings.categories);
         setCategoryDragPos({ x: lastTouchPos.x, y: lastTouchPos.y });
         if (navigator.vibrate) navigator.vibrate(30);
         document.body.style.touchAction = 'none';
@@ -600,30 +612,22 @@ export default function PackingList() {
     const handleMouseMove = (moveEvent) => {
       if (!isCategoryDragging.current) return;
       setCategoryDragPos({ x: moveEvent.clientX, y: moveEvent.clientY });
+      updatePreviewOrder(category, moveEvent.clientX, moveEvent.clientY);
     };
 
-    const handleMouseUp = (upEvent) => {
+    const handleMouseUp = () => {
       clearTimeout(categoryDragTimeout.current);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
 
       if (isCategoryDragging.current) {
-        const elementUnder = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
-        const categorySection = elementUnder?.closest('[data-category]');
-        const targetCategory = categorySection?.dataset.category;
-
-        if (targetCategory && targetCategory !== category && targetCategory !== 'Uncategorized') {
-          const oldIndex = settings.categories.indexOf(category);
-          const newIndex = settings.categories.indexOf(targetCategory);
-          if (oldIndex !== -1 && newIndex !== -1) {
-            const newCategories = [...settings.categories];
-            newCategories.splice(oldIndex, 1);
-            newCategories.splice(newIndex, 0, category);
-            updateSettings({ ...settings, categories: newCategories });
-          }
+        // Save the preview order as the final order
+        if (previewCategoryOrder) {
+          updateSettings({ ...settings, categories: previewCategoryOrder });
         }
 
         isCategoryDragging.current = false;
+        setPreviewCategoryOrder(null);
         setTimeout(() => setDraggedCategory(null), 100);
       }
     };
@@ -631,12 +635,13 @@ export default function PackingList() {
     categoryDragTimeout.current = setTimeout(() => {
       isCategoryDragging.current = true;
       setDraggedCategory(category);
+      setPreviewCategoryOrder(settings.categories);
       setCategoryDragPos({ x: clientX, y: clientY });
     }, 150);
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [settings, updateSettings]);
+  }, [settings, updateSettings, updatePreviewOrder, previewCategoryOrder]);
 
   const handleQuickAdd = async (e) => {
     e.preventDefault();
@@ -756,7 +761,9 @@ export default function PackingList() {
     return <div className="loading">Loading...</div>;
   }
 
-  const allCategories = [...settings.categories];
+  // Use preview order during drag, otherwise use settings
+  const displayCategories = previewCategoryOrder || settings.categories;
+  const allCategories = [...displayCategories];
   if (groupedItems['Uncategorized']?.length > 0) {
     allCategories.push('Uncategorized');
   }
