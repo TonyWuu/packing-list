@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import Fuse from 'fuse.js';
 import { usePackingList } from '../hooks/usePackingList';
 import { useAuth } from '../contexts/AuthContext';
@@ -368,6 +368,56 @@ export default function PackingList() {
   const [previewCategoryOrder, setPreviewCategoryOrder] = useState(null);
   const categoryDragTimeout = useRef(null);
   const isCategoryDragging = useRef(false);
+  const categoriesContainerRef = useRef(null);
+  const categoryPositions = useRef({});
+
+  // Store positions before reorder for FLIP animation
+  const storeCategoryPositions = useCallback(() => {
+    if (!categoriesContainerRef.current) return;
+    const categories = categoriesContainerRef.current.querySelectorAll('[data-category]');
+    const positions = {};
+    categories.forEach(el => {
+      const category = el.dataset.category;
+      const rect = el.getBoundingClientRect();
+      positions[category] = { top: rect.top, left: rect.left };
+    });
+    categoryPositions.current = positions;
+  }, []);
+
+  // FLIP animation after reorder
+  useLayoutEffect(() => {
+    if (!categoriesContainerRef.current || !previewCategoryOrder) return;
+
+    const categories = categoriesContainerRef.current.querySelectorAll('[data-category]');
+    const oldPositions = categoryPositions.current;
+
+    categories.forEach(el => {
+      const category = el.dataset.category;
+      if (category === draggedCategory) return; // Don't animate the dragged one
+
+      const oldPos = oldPositions[category];
+      if (!oldPos) return;
+
+      const newRect = el.getBoundingClientRect();
+      const deltaY = oldPos.top - newRect.top;
+
+      if (Math.abs(deltaY) > 1) {
+        // Apply inverse transform (FLIP: Invert)
+        el.style.transform = `translateY(${deltaY}px)`;
+        el.style.transition = 'none';
+
+        // Force reflow
+        el.offsetHeight;
+
+        // Animate to final position (FLIP: Play)
+        el.style.transition = 'transform 0.25s ease-out';
+        el.style.transform = '';
+      }
+    });
+
+    // Store new positions for next animation
+    storeCategoryPositions();
+  }, [previewCategoryOrder, draggedCategory, storeCategoryPositions]);
 
   // Group items by category, sorted by order
   const groupedItems = useMemo(() => {
@@ -538,13 +588,16 @@ export default function PackingList() {
       const newIndex = currentOrder.indexOf(targetCategory);
 
       if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        // Store positions before reorder for FLIP animation
+        storeCategoryPositions();
+
         const newOrder = [...currentOrder];
         newOrder.splice(oldIndex, 1);
         newOrder.splice(newIndex, 0, draggedCat);
         setPreviewCategoryOrder(newOrder);
       }
     }
-  }, [settings.categories, previewCategoryOrder]);
+  }, [settings.categories, previewCategoryOrder, storeCategoryPositions]);
 
   // Category drag handler
   const handleCategoryDragStart = useCallback((e, category) => {
@@ -836,7 +889,7 @@ export default function PackingList() {
         </form>
       </header>
 
-      <main className="categories">
+      <main className="categories" ref={categoriesContainerRef}>
         {allCategories.map(category => {
           const categoryItems = groupedItems[category] || [];
           const isUncategorized = category === 'Uncategorized';
