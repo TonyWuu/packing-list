@@ -229,6 +229,7 @@ function CategorySection({
   setEditingCategory,
   onDragStart,
   draggedItem,
+  hoveredCategory,
   onCategoryDragStart,
   draggedCategory,
   onToggleAllItems,
@@ -236,7 +237,7 @@ function CategorySection({
   const checkedCount = items.filter(i => i.checked).length;
   const allChecked = items.length > 0 && checkedCount === items.length;
   const someChecked = checkedCount > 0 && checkedCount < items.length;
-  const isDropTarget = draggedItem && draggedItem.category !== category;
+  const isDropTarget = draggedItem && hoveredCategory === category && draggedItem.category !== category;
   const isCategoryDropTarget = draggedCategory && draggedCategory !== category && !isUncategorized;
   const isCategoryDragging = draggedCategory === category;
 
@@ -411,6 +412,7 @@ export default function PackingList() {
   // Item drag state
   const [draggedItem, setDraggedItem] = useState(null);
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+  const [hoveredCategory, setHoveredCategory] = useState(null);
   const dragTimeout = useRef(null);
   const isDragging = useRef(false);
   const justDragged = useRef(false);
@@ -575,6 +577,11 @@ export default function PackingList() {
         // If dragging, update position and trigger auto-scroll
         setDragPos({ x: t.clientX, y: t.clientY });
         startAutoScroll(t.clientY);
+
+        // Update hovered category
+        const elementUnder = document.elementFromPoint(t.clientX, t.clientY);
+        const categorySection = elementUnder?.closest('[data-category]');
+        setHoveredCategory(categorySection?.dataset.category || null);
       };
 
       const handleTouchEnd = () => {
@@ -598,6 +605,7 @@ export default function PackingList() {
 
           justDragged.current = true;
           isDragging.current = false;
+          setHoveredCategory(null);
           setTimeout(() => {
             justDragged.current = false;
             setDraggedItem(null);
@@ -630,6 +638,11 @@ export default function PackingList() {
       if (!isDragging.current) return;
       setDragPos({ x: moveEvent.clientX, y: moveEvent.clientY });
       startAutoScroll(moveEvent.clientY);
+
+      // Update hovered category
+      const elementUnder = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+      const categorySection = elementUnder?.closest('[data-category]');
+      setHoveredCategory(categorySection?.dataset.category || null);
     };
 
     const handleMouseUp = (upEvent) => {
@@ -650,6 +663,7 @@ export default function PackingList() {
 
         justDragged.current = true;
         isDragging.current = false;
+        setHoveredCategory(null);
         setTimeout(() => {
           justDragged.current = false;
           setDraggedItem(null);
@@ -1076,6 +1090,7 @@ export default function PackingList() {
               setEditingCategory={setEditingCategory}
               onDragStart={handleDragStart}
               draggedItem={draggedItem}
+              hoveredCategory={hoveredCategory}
               onCategoryDragStart={handleCategoryDragStart}
               draggedCategory={draggedCategory}
               onToggleAllItems={handleToggleAllItems}
