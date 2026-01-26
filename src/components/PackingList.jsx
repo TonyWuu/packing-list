@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import Fuse from 'fuse.js';
-import { usePackingList } from '../hooks/usePackingList';
+import { usePackingList, useSharedList } from '../hooks/usePackingList';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import './PackingList.css';
@@ -378,6 +378,141 @@ function CategorySection({
   );
 }
 
+// Read-only partner list component
+function PartnerList({ items, settings, loading, error, onRemove }) {
+  const [collapsedCategories, setCollapsedCategories] = useState({});
+
+  const groupedItems = useMemo(() => {
+    const groups = {};
+    items.forEach(item => {
+      const cat = item.category || 'Uncategorized';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
+    // Sort items within each category by order
+    Object.keys(groups).forEach(cat => {
+      groups[cat].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    });
+    return groups;
+  }, [items]);
+
+  const categories = settings?.categories || [];
+  const allCategories = useMemo(() => {
+    const itemCategories = Object.keys(groupedItems);
+    const ordered = categories.filter(c => itemCategories.includes(c));
+    const unordered = itemCategories.filter(c => !categories.includes(c) && c !== 'Uncategorized');
+    return [...ordered, ...unordered, ...(groupedItems['Uncategorized'] ? ['Uncategorized'] : [])];
+  }, [categories, groupedItems]);
+
+  const { checked, total } = useMemo(() => {
+    const checked = items.filter(i => i.checked).length;
+    return { checked, total: items.length };
+  }, [items]);
+
+  const progress = total > 0 ? Math.round((checked / total) * 100) : 0;
+
+  if (loading) {
+    return (
+      <div className="partner-list">
+        <div className="partner-header">
+          <h2>Partner's List</h2>
+        </div>
+        <div className="partner-loading">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="partner-list">
+        <div className="partner-header">
+          <h2>Partner's List</h2>
+          <button className="icon-btn" onClick={onRemove} title="Remove partner list">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="partner-error">{error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="partner-list">
+      <div className="partner-header">
+        <h2>Partner's List</h2>
+        <button className="icon-btn" onClick={onRemove} title="Remove partner list">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="progress-section">
+        <span className="progress-label">Partner's Progress</span>
+        <div className="progress-bar">
+          <div className="progress-fill" style={{ width: `${progress}%` }} />
+        </div>
+        <span className="progress-text">{checked}/{total}</span>
+      </div>
+
+      <div className="categories">
+        {allCategories.map(category => {
+          const categoryItems = groupedItems[category] || [];
+          const isCollapsed = collapsedCategories[category] || false;
+          const checkedCount = categoryItems.filter(i => i.checked).length;
+
+          return (
+            <div
+              key={category}
+              className={`category partner-category ${isCollapsed ? 'collapsed' : ''}`}
+            >
+              <div className="category-header">
+                <div className="category-header-left">
+                  <button
+                    className="collapse-toggle"
+                    onClick={() => setCollapsedCategories(prev => ({
+                      ...prev,
+                      [category]: !prev[category]
+                    }))}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                  <h3 className="category-name">{category}</h3>
+                </div>
+                <div className="category-header-right">
+                  <span className="category-count">{checkedCount}/{categoryItems.length}</span>
+                </div>
+              </div>
+
+              {!isCollapsed && (
+                <ul className="items">
+                  {categoryItems.map(item => (
+                    <li key={item.id} className={`item ${item.checked ? 'checked' : ''}`}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={item.checked}
+                          disabled
+                          readOnly
+                        />
+                        <span className="item-name">{item.name}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function PackingList() {
   const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -409,6 +544,41 @@ export default function PackingList() {
   // Celebration state
   const [showCelebration, setShowCelebration] = useState(false);
   const prevAllChecked = useRef(false);
+
+  // Partner list state (desktop only)
+  const [partnerToken, setPartnerToken] = useState(() =>
+    localStorage.getItem('partnerShareToken') || ''
+  );
+  const [showPartnerList, setShowPartnerList] = useState(() =>
+    localStorage.getItem('showPartnerList') === 'true'
+  );
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [partnerTokenInput, setPartnerTokenInput] = useState('');
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  // Fetch partner's list data
+  const {
+    items: partnerItems,
+    settings: partnerSettings,
+    loading: partnerLoading,
+    error: partnerError
+  } = useSharedList(showPartnerList ? partnerToken : null);
+
+  // Track desktop screen size
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Save partner preferences to localStorage
+  useEffect(() => {
+    localStorage.setItem('partnerShareToken', partnerToken);
+  }, [partnerToken]);
+
+  useEffect(() => {
+    localStorage.setItem('showPartnerList', showPartnerList.toString());
+  }, [showPartnerList]);
 
   // Item drag state
   const [draggedItem, setDraggedItem] = useState(null);
@@ -1012,9 +1182,25 @@ export default function PackingList() {
     allCategories.push('Uncategorized');
   }
 
+  const handleRemovePartner = () => {
+    setShowPartnerList(false);
+    setPartnerToken('');
+  };
+
+  const handleAddPartner = (e) => {
+    e.preventDefault();
+    const token = partnerTokenInput.trim();
+    if (token) {
+      setPartnerToken(token);
+      setShowPartnerList(true);
+      setShowPartnerModal(false);
+    }
+  };
+
   return (
-    <div className="packing-list">
-      <header className="header">
+    <div className={`packing-list-container ${showPartnerList && partnerToken && isDesktop ? 'side-by-side' : ''}`}>
+      <div className="packing-list">
+        <header className="header">
         <div className="header-top">
           <h1>Packing List</h1>
           <div className="header-actions">
@@ -1043,6 +1229,26 @@ export default function PackingList() {
                 <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
               </svg>
             </button>
+            {isDesktop && (
+              <button
+                onClick={() => {
+                  if (partnerToken && showPartnerList) {
+                    setShowPartnerList(false);
+                  } else if (partnerToken) {
+                    setShowPartnerList(true);
+                  } else {
+                    setPartnerTokenInput('');
+                    setShowPartnerModal(true);
+                  }
+                }}
+                className={`icon-btn ${showPartnerList && partnerToken ? 'active' : ''}`}
+                title={showPartnerList ? "Hide partner's list" : "Show partner's list"}
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                </svg>
+              </button>
+            )}
             <button onClick={logout} className="icon-btn" title="Sign out">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                 <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
@@ -1204,6 +1410,45 @@ export default function PackingList() {
                 '--color': ['#6366f1', '#ec4899', '#10b981', '#f97316', '#8b5cf6'][Math.floor(Math.random() * 5)]
               }} />
             ))}
+          </div>
+        </div>
+      )}
+      </div>
+
+      {/* Partner's list (desktop only) */}
+      {showPartnerList && partnerToken && isDesktop && (
+        <PartnerList
+          items={partnerItems}
+          settings={partnerSettings}
+          loading={partnerLoading}
+          error={partnerError}
+          onRemove={handleRemovePartner}
+        />
+      )}
+
+      {/* Partner token modal */}
+      {showPartnerModal && (
+        <div className="modal-overlay" onClick={() => setShowPartnerModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h2>Add Partner's List</h2>
+            <p>Enter your partner's share token to view their packing list side by side.</p>
+            <form onSubmit={handleAddPartner}>
+              <input
+                type="text"
+                value={partnerTokenInput}
+                onChange={e => setPartnerTokenInput(e.target.value)}
+                placeholder="Paste share token here"
+                autoFocus
+              />
+              <div className="modal-actions">
+                <button type="button" className="modal-btn secondary" onClick={() => setShowPartnerModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="modal-btn primary" disabled={!partnerTokenInput.trim()}>
+                  Add Partner
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
