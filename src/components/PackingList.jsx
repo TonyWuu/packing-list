@@ -8,15 +8,22 @@ import './PackingList.css';
 // Smart categorization mapping with synonyms and variations
 const categoryKeywords = {
   Clothes: [
-    'shirt', 'pants', 'jeans', 'shorts', 'dress', 'skirt', 'jacket', 'coat',
+    'shirt', 'shirts', 'pants', 'jeans', 'shorts', 'dress', 'skirt', 'jacket', 'coat',
     'sweater', 'hoodie', 'socks', 'underwear', 'boxers', 'briefs', 'bra',
-    'pajamas', 'pyjamas', 'sleepwear', 'swimsuit', 'bikini', 'trunks',
-    'hat', 'cap', 'beanie', 'scarf', 'gloves', 'belt', 'tie', 'suit',
+    'pajamas', 'pyjamas', 'pjs', 'sleepwear', 'nightgown', 'robe', 'bathrobe',
+    'swimsuit', 'bikini', 'trunks', 'swim', 'swimming',
+    'hat', 'cap', 'beanie', 'scarf', 'gloves', 'mittens', 'belt', 'tie', 'suit',
     'blazer', 'cardigan', 'vest', 'leggings', 'tights', 'blouse', 'polo',
-    't-shirt', 'tshirt', 'tank top', 'tanktop', 'sweatshirt', 'sweatpants',
+    't-shirt', 'tshirt', 'tee', 'tank top', 'tanktop', 'sweatshirt', 'sweatpants',
     'joggers', 'tracksuit', 'raincoat', 'windbreaker', 'parka', 'fleece',
     'thermal', 'base layer', 'compression', 'sports bra', 'athletic',
-    'workout clothes', 'gym clothes', 'running shorts', 'yoga pants'
+    'workout clothes', 'gym clothes', 'running shorts', 'yoga pants',
+    'clothes', 'clothing', 'outfit', 'outfits', 'attire', 'apparel', 'wear',
+    'top', 'tops', 'bottom', 'bottoms', 'layers', 'undershirt', 'underpants',
+    'long sleeve', 'short sleeve', 'sleeveless', 'button down', 'button up',
+    'formal', 'casual', 'denim', 'khaki', 'chinos', 'slacks', 'trousers',
+    'romper', 'jumpsuit', 'overalls', 'dungarees', 'onesie',
+    'jersey', 'uniform', 'costume', 'gown', 'tunic', 'kimono', 'poncho'
   ],
   Shoes: [
     'shoes', 'sneakers', 'boots', 'sandals', 'flip flops', 'flipflops',
@@ -35,17 +42,27 @@ const categoryKeywords = {
     'brush', 'hair dryer', 'straightener', 'curling iron', 'tweezers',
     'nail clipper', 'nail file', 'cotton swabs', 'q-tips', 'cotton pads',
     'tissues', 'wet wipes', 'hand sanitizer', 'perfume', 'cologne', 'fragrance',
-    'contact lens', 'contact solution', 'glasses', 'retainer'
+    'contact lens', 'contact solution', 'glasses', 'retainer',
+    'bidet', 'toilet paper', 'bathroom', 'shower', 'bath', 'towel', 'washcloth',
+    'exfoliant', 'scrub', 'mask', 'face mask', 'sheet mask', 'retinol', 'spf',
+    'body lotion', 'hand cream', 'foot cream', 'cuticle', 'nail polish',
+    'hair tie', 'hair clip', 'bobby pin', 'headband', 'shower cap',
+    'menstrual', 'tampon', 'pad', 'menstrual cup', 'panty liner',
+    'electric toothbrush', 'waterpik', 'dental', 'denture', 'night guard'
   ],
   Electronics: [
     'phone', 'charger', 'laptop', 'tablet', 'ipad', 'kindle', 'e-reader',
     'camera', 'gopro', 'drone', 'headphones', 'earbuds', 'airpods', 'earphones',
     'speaker', 'bluetooth', 'power bank', 'battery pack', 'portable charger',
-    'cable', 'usb', 'lightning', 'adapter', 'converter', 'plug adapter',
+    'cable', 'usb', 'usb-c', 'lightning', 'adapter', 'converter', 'plug adapter',
     'extension cord', 'power strip', 'watch', 'smartwatch', 'fitbit',
     'apple watch', 'garmin', 'tripod', 'selfie stick', 'sd card', 'memory card',
     'hard drive', 'flash drive', 'usb drive', 'mouse', 'keyboard', 'monitor',
-    'gaming', 'nintendo', 'switch', 'controller', 'console', 'vr', 'oculus'
+    'gaming', 'nintendo', 'switch', 'controller', 'console', 'vr', 'oculus',
+    'iphone', 'android', 'macbook', 'chromebook', 'airdrop', 'wireless',
+    'hdmi', 'displayport', 'ethernet', 'wifi', 'hotspot', 'router', 'modem',
+    'battery', 'batteries', 'aa', 'aaa', 'rechargeable', 'charging',
+    'apple', 'samsung', 'sony', 'bose', 'anker', 'belkin'
   ],
   Documents: [
     'passport', 'id', 'license', 'drivers license', 'visa', 'boarding pass',
@@ -56,13 +73,18 @@ const categoryKeywords = {
     'emergency contacts', 'copies', 'photocopies'
   ],
   Medicine: [
-    'medicine', 'medication', 'pills', 'vitamins', 'supplements', 'aspirin',
-    'ibuprofen', 'tylenol', 'advil', 'painkiller', 'pain relief', 'antibiotic',
-    'allergy', 'antihistamine', 'benadryl', 'claritin', 'zyrtec', 'inhaler',
-    'epipen', 'insulin', 'prescription', 'first aid', 'bandaid', 'band-aid',
+    'medicine', 'medication', 'meds', 'pills', 'vitamins', 'supplements', 'aspirin',
+    'ibuprofen', 'tylenol', 'advil', 'aleve', 'painkiller', 'pain relief', 'antibiotic',
+    'allergy', 'antihistamine', 'benadryl', 'claritin', 'zyrtec', 'allegra', 'inhaler',
+    'epipen', 'insulin', 'prescription', 'rx', 'first aid', 'bandaid', 'band-aid',
     'bandage', 'gauze', 'antiseptic', 'neosporin', 'thermometer', 'cold medicine',
     'cough drops', 'throat lozenges', 'antacid', 'tums', 'pepto', 'dramamine',
-    'motion sickness', 'melatonin', 'sleep aid', 'eye drops', 'nasal spray'
+    'motion sickness', 'melatonin', 'sleep aid', 'eye drops', 'nasal spray',
+    'dayquil', 'nyquil', 'sudafed', 'mucinex', 'robitussin', 'cough syrup',
+    'imodium', 'laxative', 'fiber', 'probiotic', 'omega', 'fish oil', 'vitamin',
+    'zinc', 'elderberry', 'echinacea', 'emergen-c', 'airborne',
+    'heating pad', 'ice pack', 'ace bandage', 'splint', 'brace', 'sling',
+    'sunburn', 'hydrocortisone', 'calamine', 'antiitch', 'bug bite'
   ],
   Accessories: [
     'jewelry', 'necklace', 'bracelet', 'earrings', 'ring', 'watch', 'sunglasses',
