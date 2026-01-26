@@ -566,18 +566,25 @@ export default function PackingList() {
       const startY = touch.clientY;
 
       let lastTouchPos = { x: startX, y: startY };
+      const MOVE_THRESHOLD = 15; // Allow small movements during hold
 
       const handleTouchMove = (moveEvent) => {
         const t = moveEvent.touches[0];
         lastTouchPos = { x: t.clientX, y: t.clientY };
 
-        // If drag hasn't started yet, cancel the timeout (user is scrolling)
+        // If drag hasn't started yet, check if movement exceeds threshold (user is scrolling)
         if (!isDragging.current) {
-          clearTimeout(dragTimeout.current);
-          document.removeEventListener('touchmove', handleTouchMove);
-          document.removeEventListener('touchend', handleTouchEnd);
+          const dx = Math.abs(t.clientX - startX);
+          const dy = Math.abs(t.clientY - startY);
+          if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+            clearTimeout(dragTimeout.current);
+            document.removeEventListener('touchmove', handleTouchMove);
+            document.removeEventListener('touchend', handleTouchEnd);
+          }
           return;
         }
+        // Prevent scrolling while dragging
+        moveEvent.preventDefault();
         // If dragging, update position and trigger auto-scroll
         setDragPos({ x: t.clientX, y: t.clientY });
         startAutoScroll(t.clientY);
@@ -628,8 +635,8 @@ export default function PackingList() {
         document.body.style.overflow = 'hidden';
       }, 400);
 
-      // Use passive listener to allow scroll detection
-      document.addEventListener('touchmove', handleTouchMove, { passive: true });
+      // Non-passive to allow preventDefault when dragging
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
       document.addEventListener('touchend', handleTouchEnd);
       return;
     }
