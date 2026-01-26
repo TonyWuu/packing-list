@@ -957,24 +957,24 @@
   margin-bottom: 20px;
 }
 
-/* Consistent progress bar sizing in side-by-side */
-.packing-list-container.side-by-side .progress-section {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
+/* Consistent progress section sizing in side-by-side */
+.packing-list-container.side-by-side .progress-section,
+.packing-list-container.side-by-side .partner-list .progress-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
+  min-height: 70px;
 }
 
 .packing-list-container.side-by-side .progress-section .progress-label {
-  grid-column: 1 / -1;
+  width: 100%;
+  margin-bottom: -4px;
 }
 
 .packing-list-container.side-by-side .progress-bar {
-  flex: none;
-  width: 100%;
-}
-
-.packing-list-container.side-by-side .partner-list .progress-section {
-  grid-template-columns: 1fr auto;
+  flex: 1;
+  min-width: 0;
 }
 
 /* Partner list styles */
