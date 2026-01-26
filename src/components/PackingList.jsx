@@ -102,60 +102,89 @@ const keywordList = Object.entries(categoryKeywords).flatMap(([category, keyword
   keywords.map(keyword => ({ keyword, category }))
 );
 
-// Configure Fuse.js for fuzzy matching
+// Configure Fuse.js for fuzzy matching - stricter settings
 const fuse = new Fuse(keywordList, {
   keys: ['keyword'],
-  threshold: 0.4, // Lower = stricter matching (0.0 = exact, 1.0 = match anything)
-  distance: 100,  // How far to search for matches within the string
-  minMatchCharLength: 2,
+  threshold: 0.3, // Stricter matching (0.0 = exact, 1.0 = match anything)
+  distance: 50,   // How far to search for matches within the string
+  minMatchCharLength: 3,
   includeScore: true,
 });
 
 function detectCategory(itemName, existingCategories) {
   const lowerName = itemName.toLowerCase().trim();
 
-  // Split input into words to match each word
-  const words = lowerName.split(/\s+/);
-
-  // Try to find a match for the full phrase first
-  let results = fuse.search(lowerName);
-
-  // If no good match for full phrase, try individual words
-  if (results.length === 0 || results[0].score > 0.3) {
-    for (const word of words) {
-      if (word.length >= 2) {
-        const wordResults = fuse.search(word);
-        if (wordResults.length > 0 && (results.length === 0 || wordResults[0].score < results[0].score)) {
-          results = wordResults;
-        }
-      }
-    }
+  // Skip very short inputs
+  if (lowerName.length < 2) {
+    const isNew = !existingCategories.includes('Misc');
+    return { category: 'Misc', isNew };
   }
 
-  // Also check for exact substring matches (handles cases like "3 shirts")
+  // Split input into words (filter out short words and common articles)
+  const stopWords = ['a', 'an', 'the', 'my', 'for', 'to', 'of', 'and', 'or', 'in', 'on', 'with'];
+  const words = lowerName.split(/\s+/).filter(w => w.length >= 2 && !stopWords.includes(w));
+
+  // Track all matches with scores
+  const matches = [];
+
+  // 1. Check for exact word matches first (highest priority)
   for (const [category, keywords] of Object.entries(categoryKeywords)) {
     for (const keyword of keywords) {
-      if (lowerName.includes(keyword) || keyword.includes(lowerName)) {
-        const isNew = !existingCategories.includes(category);
-        // Prioritize existing categories
-        if (existingCategories.includes(category)) {
-          return { category, isNew: false };
+      // Check if any word in input exactly matches a keyword
+      for (const word of words) {
+        if (word === keyword || word === keyword + 's' || word + 's' === keyword) {
+          matches.push({ category, score: 0, type: 'exact' });
         }
-        return { category, isNew };
+      }
+      // Check if a multi-word keyword matches the input
+      if (keyword.includes(' ') && lowerName.includes(keyword)) {
+        matches.push({ category, score: 0, type: 'exact-phrase' });
       }
     }
   }
 
-  // Use fuzzy match result if found
-  if (results.length > 0 && results[0].score < 0.5) {
-    const category = results[0].item.category;
-    const isNew = !existingCategories.includes(category);
-    return { category, isNew };
+  // 2. Check for substring matches (keyword contained in input)
+  for (const [category, keywords] of Object.entries(categoryKeywords)) {
+    for (const keyword of keywords) {
+      // Only match if keyword is at least 4 chars and contained in input
+      if (keyword.length >= 4 && lowerName.includes(keyword)) {
+        matches.push({ category, score: 0.1, type: 'substring' });
+      }
+    }
   }
 
-  // Default to Misc if no match found
-  const isNew = !existingCategories.includes('Misc');
-  return { category: 'Misc', isNew };
+  // 3. Use fuzzy matching for remaining cases
+  for (const word of words) {
+    if (word.length >= 3) {
+      const fuzzyResults = fuse.search(word);
+      for (const result of fuzzyResults.slice(0, 3)) {
+        if (result.score < 0.3) {
+          matches.push({ category: result.item.category, score: result.score + 0.2, type: 'fuzzy' });
+        }
+      }
+    }
+  }
+
+  // If no matches found, return Misc
+  if (matches.length === 0) {
+    const isNew = !existingCategories.includes('Misc');
+    return { category: 'Misc', isNew };
+  }
+
+  // Sort matches: prioritize existing categories, then by score
+  matches.sort((a, b) => {
+    const aExists = existingCategories.includes(a.category);
+    const bExists = existingCategories.includes(b.category);
+    // Prioritize existing categories
+    if (aExists && !bExists) return -1;
+    if (!aExists && bExists) return 1;
+    // Then by score (lower is better)
+    return a.score - b.score;
+  });
+
+  const bestMatch = matches[0];
+  const isNew = !existingCategories.includes(bestMatch.category);
+  return { category: bestMatch.category, isNew };
 }
 
 function CategorySection({
@@ -368,10 +397,16 @@ export default function PackingList() {
   const [draggedCategory, setDraggedCategory] = useState(null);
   const [categoryDragPos, setCategoryDragPos] = useState({ x: 0, y: 0 });
   const [previewCategoryOrder, setPreviewCategoryOrder] = useState(null);
+  const previewCategoryOrderRef = useRef(null); // Ref to access latest value in event handlers
   const categoryDragTimeout = useRef(null);
   const isCategoryDragging = useRef(false);
   const categoriesContainerRef = useRef(null);
   const categoryPositions = useRef({});
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    previewCategoryOrderRef.current = previewCategoryOrder;
+  }, [previewCategoryOrder]);
 
   // Store positions before reorder for FLIP animation
   const storeCategoryPositions = useCallback(() => {
@@ -585,7 +620,8 @@ export default function PackingList() {
     const targetCategory = categorySection?.dataset.category;
 
     if (targetCategory && targetCategory !== draggedCat && targetCategory !== 'Uncategorized') {
-      const currentOrder = previewCategoryOrder || settings.categories;
+      // Use ref to get latest order
+      const currentOrder = previewCategoryOrderRef.current || settings.categories;
       const oldIndex = currentOrder.indexOf(draggedCat);
       const newIndex = currentOrder.indexOf(targetCategory);
 
@@ -599,7 +635,7 @@ export default function PackingList() {
         setPreviewCategoryOrder(newOrder);
       }
     }
-  }, [settings.categories, previewCategoryOrder, storeCategoryPositions]);
+  }, [settings.categories, storeCategoryPositions]);
 
   // Category drag handler
   const handleCategoryDragStart = useCallback((e, category) => {
@@ -634,9 +670,10 @@ export default function PackingList() {
         document.body.style.overflow = '';
 
         if (isCategoryDragging.current) {
-          // Save the preview order as the final order
-          if (previewCategoryOrder) {
-            updateSettings({ ...settings, categories: previewCategoryOrder });
+          // Save the preview order as the final order (use ref for latest value)
+          const finalOrder = previewCategoryOrderRef.current;
+          if (finalOrder) {
+            updateSettings({ ...settings, categories: finalOrder });
           }
 
           isCategoryDragging.current = false;
@@ -676,9 +713,10 @@ export default function PackingList() {
       document.removeEventListener('mouseup', handleMouseUp);
 
       if (isCategoryDragging.current) {
-        // Save the preview order as the final order
-        if (previewCategoryOrder) {
-          updateSettings({ ...settings, categories: previewCategoryOrder });
+        // Save the preview order as the final order (use ref for latest value)
+        const finalOrder = previewCategoryOrderRef.current;
+        if (finalOrder) {
+          updateSettings({ ...settings, categories: finalOrder });
         }
 
         isCategoryDragging.current = false;
@@ -696,7 +734,7 @@ export default function PackingList() {
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [settings, updateSettings, updatePreviewOrder, previewCategoryOrder]);
+  }, [settings, updateSettings, updatePreviewOrder]);
 
   const handleQuickAdd = async (e) => {
     e.preventDefault();
