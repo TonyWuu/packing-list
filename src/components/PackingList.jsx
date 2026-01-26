@@ -472,6 +472,8 @@ export default function PackingList() {
   const categoriesContainerRef = useRef(null);
   const categoryPositions = useRef({});
   const preDragCollapsedRef = useRef(null); // Store collapsed state before category drag
+  const lastReorderTime = useRef(0); // Debounce rapid reorders
+  const lastTargetCategory = useRef(null); // Track last swap target to prevent flip-flopping
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -700,6 +702,12 @@ export default function PackingList() {
 
   // Update preview category order based on current drag position
   const updatePreviewOrder = useCallback((draggedCat, x, y) => {
+    // Debounce: prevent reorders happening too quickly (causes jumping)
+    const now = Date.now();
+    if (now - lastReorderTime.current < 150) {
+      return;
+    }
+
     const elementUnder = document.elementFromPoint(x, y);
     const categorySection = elementUnder?.closest('[data-category]');
     const targetCategory = categorySection?.dataset.category;
@@ -711,6 +719,11 @@ export default function PackingList() {
       const newIndex = currentOrder.indexOf(targetCategory);
 
       if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        // Prevent flip-flopping: if we just swapped with this target, require moving to a different one first
+        if (lastTargetCategory.current === targetCategory) {
+          return;
+        }
+
         // Store positions before reorder for FLIP animation
         storeCategoryPositions();
 
@@ -718,7 +731,13 @@ export default function PackingList() {
         newOrder.splice(oldIndex, 1);
         newOrder.splice(newIndex, 0, draggedCat);
         setPreviewCategoryOrder(newOrder);
+
+        lastReorderTime.current = now;
+        lastTargetCategory.current = targetCategory;
       }
+    } else {
+      // Clear last target when not over a valid swap target
+      lastTargetCategory.current = null;
     }
   }, [settings.categories, storeCategoryPositions]);
 
@@ -779,6 +798,8 @@ export default function PackingList() {
 
       categoryDragTimeout.current = setTimeout(() => {
         isCategoryDragging.current = true;
+        lastReorderTime.current = 0;
+        lastTargetCategory.current = null;
         setDraggedCategory(category);
         setPreviewCategoryOrder(settings.categories);
         setCategoryDragPos({ x: lastTouchPos.x, y: lastTouchPos.y });
@@ -835,6 +856,8 @@ export default function PackingList() {
 
     categoryDragTimeout.current = setTimeout(() => {
       isCategoryDragging.current = true;
+      lastReorderTime.current = 0;
+      lastTargetCategory.current = null;
       setDraggedCategory(category);
       setPreviewCategoryOrder(settings.categories);
       setCategoryDragPos({ x: clientX, y: clientY });
