@@ -192,6 +192,11 @@
   color: var(--primary-color);
 }
 
+.reset-btn-spacer {
+  width: 32px;
+  height: 32px;
+}
+
 /* Categories */
 .categories {
   display: flex;

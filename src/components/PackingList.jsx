@@ -501,11 +501,12 @@ function PartnerList({ items, settings, ownerName, loading, error, onRemove }) {
       </div>
 
       <div className="progress-section">
-        <span className="progress-label">Progress</span>
+        <span className="progress-label">Packing Progress</span>
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
         <span className="progress-text">{checked}/{total}</span>
+        <div className="reset-btn-spacer" />
       </div>
 
       <div className="categories">
