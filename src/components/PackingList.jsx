@@ -1249,6 +1249,22 @@ export default function PackingList() {
     }
   };
 
+  // Check if all categories are collapsed
+  const allCategoriesCollapsed = allCategories.length > 0 &&
+    allCategories.every(cat => collapsedCategories[cat]);
+
+  const toggleCollapseAll = () => {
+    if (allCategoriesCollapsed) {
+      // Expand all
+      setCollapsedCategories({});
+    } else {
+      // Collapse all
+      const allCollapsed = {};
+      allCategories.forEach(cat => { allCollapsed[cat] = true; });
+      setCollapsedCategories(allCollapsed);
+    }
+  };
+
   return (
     <div className={`packing-list-container ${showPartnerList && partnerToken && isDesktop ? 'side-by-side' : ''}`}>
       <div className="packing-list">
@@ -1264,6 +1280,21 @@ export default function PackingList() {
               ) : (
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                   <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+                </svg>
+              )}
+            </button>
+            <button
+              onClick={toggleCollapseAll}
+              className="icon-btn"
+              title={allCategoriesCollapsed ? 'Expand all' : 'Collapse all'}
+            >
+              {allCategoriesCollapsed ? (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15 12 18.17z"/>
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M7.41 18.59L8.83 20 12 16.83 15.17 20l1.41-1.41L12 14l-4.59 4.59zm9.18-13.18L15.17 4 12 7.17 8.83 4 7.41 5.41 12 10l4.59-4.59z"/>
                 </svg>
               )}
             </button>
