@@ -414,6 +414,50 @@ export default function PackingList() {
   const dragTimeout = useRef(null);
   const isDragging = useRef(false);
   const justDragged = useRef(false);
+  const autoScrollInterval = useRef(null);
+
+  // Auto-scroll when dragging near edges
+  const startAutoScroll = useCallback((y) => {
+    const edgeThreshold = 80; // pixels from edge to start scrolling
+    const maxScrollSpeed = 12; // max pixels per frame
+
+    // Clear any existing interval
+    if (autoScrollInterval.current) {
+      cancelAnimationFrame(autoScrollInterval.current);
+      autoScrollInterval.current = null;
+    }
+
+    const scroll = () => {
+      const viewportHeight = window.innerHeight;
+      let scrollAmount = 0;
+
+      if (y < edgeThreshold) {
+        // Near top - scroll up
+        const intensity = 1 - (y / edgeThreshold);
+        scrollAmount = -maxScrollSpeed * intensity;
+      } else if (y > viewportHeight - edgeThreshold) {
+        // Near bottom - scroll down
+        const intensity = 1 - ((viewportHeight - y) / edgeThreshold);
+        scrollAmount = maxScrollSpeed * intensity;
+      }
+
+      if (scrollAmount !== 0) {
+        window.scrollBy(0, scrollAmount);
+        autoScrollInterval.current = requestAnimationFrame(scroll);
+      } else {
+        autoScrollInterval.current = null;
+      }
+    };
+
+    scroll();
+  }, []);
+
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollInterval.current) {
+      cancelAnimationFrame(autoScrollInterval.current);
+      autoScrollInterval.current = null;
+    }
+  }, []);
 
   // Category drag state
   const [draggedCategory, setDraggedCategory] = useState(null);
@@ -528,12 +572,14 @@ export default function PackingList() {
           document.removeEventListener('touchend', handleTouchEnd);
           return;
         }
-        // If dragging, update position
+        // If dragging, update position and trigger auto-scroll
         setDragPos({ x: t.clientX, y: t.clientY });
+        startAutoScroll(t.clientY);
       };
 
       const handleTouchEnd = () => {
         clearTimeout(dragTimeout.current);
+        stopAutoScroll();
         document.removeEventListener('touchmove', handleTouchMove);
         document.removeEventListener('touchend', handleTouchEnd);
         // Restore scrolling
@@ -583,10 +629,12 @@ export default function PackingList() {
     const handleMouseMove = (moveEvent) => {
       if (!isDragging.current) return;
       setDragPos({ x: moveEvent.clientX, y: moveEvent.clientY });
+      startAutoScroll(moveEvent.clientY);
     };
 
     const handleMouseUp = (upEvent) => {
       clearTimeout(dragTimeout.current);
+      stopAutoScroll();
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
 
@@ -617,7 +665,7 @@ export default function PackingList() {
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [updateItem]);
+  }, [updateItem, startAutoScroll, stopAutoScroll]);
 
   // Safe toggle that ignores clicks right after dragging
   const safeToggleItem = useCallback((itemId) => {
@@ -682,10 +730,12 @@ export default function PackingList() {
         }
         setCategoryDragPos({ x: t.clientX, y: t.clientY });
         updatePreviewOrder(category, t.clientX, t.clientY);
+        startAutoScroll(t.clientY);
       };
 
       const handleTouchEnd = () => {
         clearTimeout(categoryDragTimeout.current);
+        stopAutoScroll();
         document.removeEventListener('touchmove', handleTouchMove);
         document.removeEventListener('touchend', handleTouchEnd);
         document.body.style.touchAction = '';
@@ -727,10 +777,12 @@ export default function PackingList() {
       if (!isCategoryDragging.current) return;
       setCategoryDragPos({ x: moveEvent.clientX, y: moveEvent.clientY });
       updatePreviewOrder(category, moveEvent.clientX, moveEvent.clientY);
+      startAutoScroll(moveEvent.clientY);
     };
 
     const handleMouseUp = () => {
       clearTimeout(categoryDragTimeout.current);
+      stopAutoScroll();
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
 
@@ -756,7 +808,7 @@ export default function PackingList() {
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [settings, updateSettings, updatePreviewOrder]);
+  }, [settings, updateSettings, updatePreviewOrder, startAutoScroll, stopAutoScroll]);
 
   const handleQuickAdd = async (e) => {
     e.preventDefault();
