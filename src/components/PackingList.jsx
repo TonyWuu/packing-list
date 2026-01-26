@@ -1272,7 +1272,7 @@ export default function PackingList() {
         <div className="header-top">
           <h1>Packing List</h1>
           <div className="header-actions">
-            <button onClick={toggleTheme} className="icon-btn" title={theme === 'dark' ? 'Light mode' : 'Dark mode'}>
+            <button onClick={toggleTheme} className="icon-btn" title={theme === 'dark' ? 'Light mode' : 'Dark mode'} data-tooltip={theme === 'dark' ? 'Light mode' : 'Dark mode'}>
               {theme === 'dark' ? (
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                   <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>
@@ -1287,6 +1287,7 @@ export default function PackingList() {
               onClick={toggleCollapseAll}
               className="icon-btn"
               title={allCategoriesCollapsed ? 'Expand all' : 'Collapse all'}
+              data-tooltip={allCategoriesCollapsed ? 'Expand all' : 'Collapse all'}
             >
               {allCategoriesCollapsed ? (
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
@@ -1302,12 +1303,13 @@ export default function PackingList() {
               onClick={() => setShowAddCategory(!showAddCategory)}
               className={`icon-btn ${showAddCategory ? 'active' : ''}`}
               title="Add category"
+              data-tooltip="Add category"
             >
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
               </svg>
             </button>
-            <button onClick={handleShare} className="icon-btn" title="Share">
+            <button onClick={handleShare} className="icon-btn" title="Share" data-tooltip="Share">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                 <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
               </svg>
@@ -1326,13 +1328,14 @@ export default function PackingList() {
                 }}
                 className={`icon-btn ${showPartnerList && partnerToken ? 'active' : ''}`}
                 title={showPartnerList ? "Hide partner's list" : "Show partner's list"}
+                data-tooltip={showPartnerList ? "Hide partner's list" : "Show partner's list"}
               >
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                   <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
                 </svg>
               </button>
             )}
-            <button onClick={logout} className="icon-btn" title="Sign out">
+            <button onClick={logout} className="icon-btn" title="Sign out" data-tooltip="Sign out">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                 <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
               </svg>
@@ -1349,7 +1352,7 @@ export default function PackingList() {
             />
           </div>
           <span className="progress-text">{checkedCount}/{totalCount}</span>
-          <button onClick={resetAllChecks} className="reset-btn" title="Reset all">
+          <button onClick={resetAllChecks} className="reset-btn" title="Reset all" data-tooltip="Reset all">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
               <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
             </svg>
