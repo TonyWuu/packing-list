@@ -492,8 +492,11 @@
   transition: all 0.15s ease;
 }
 
-.item input[type="checkbox"]:hover {
-  border-color: var(--success-color);
+/* Only show hover state on devices that support hover (not touch) */
+@media (hover: hover) {
+  .item input[type="checkbox"]:hover {
+    border-color: var(--success-color);
+  }
 }
 
 .item input[type="checkbox"]:checked {
@@ -504,13 +507,13 @@
 .item input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
-  left: 5px;
-  top: 2px;
+  left: 50%;
+  top: 45%;
   width: 4px;
   height: 8px;
   border: solid white;
   border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .item-name {
@@ -518,6 +521,30 @@
   color: var(--text-primary);
   font-weight: 400;
   line-height: 1.4;
+  cursor: text;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease;
+}
+
+.item-name:hover {
+  background: var(--hover-bg);
+}
+
+.item-edit-input {
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.4;
+  border: 2px solid var(--primary-color);
+  background: var(--card-bg);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+  box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
 .item-delete {

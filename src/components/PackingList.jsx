@@ -226,6 +226,7 @@ function CategorySection({
   setCategoryInputs,
   toggleItem,
   deleteItem,
+  updateItem,
   setEditingCategory,
   onDragStart,
   draggedItem,
@@ -234,6 +235,22 @@ function CategorySection({
   draggedCategory,
   onToggleAllItems,
 }) {
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editingItemName, setEditingItemName] = useState('');
+
+  const startEditingItem = (item) => {
+    setEditingItemId(item.id);
+    setEditingItemName(item.name);
+  };
+
+  const saveItemName = async () => {
+    if (editingItemId && editingItemName.trim()) {
+      await updateItem(editingItemId, { name: editingItemName.trim() });
+    }
+    setEditingItemId(null);
+    setEditingItemName('');
+  };
+
   const checkedCount = items.filter(i => i.checked).length;
   const allChecked = items.length > 0 && checkedCount === items.length;
   const someChecked = checkedCount > 0 && checkedCount < items.length;
@@ -333,8 +350,12 @@ function CategorySection({
             <li
               key={item.id}
               className={`item ${item.checked ? 'checked' : ''} ${draggedItem?.id === item.id ? 'dragging' : ''}`}
-              onTouchStart={(e) => onDragStart(e, item)}
-              onMouseDown={(e) => onDragStart(e, item)}
+              onTouchStart={(e) => {
+                if (editingItemId !== item.id) onDragStart(e, item);
+              }}
+              onMouseDown={(e) => {
+                if (editingItemId !== item.id) onDragStart(e, item);
+              }}
             >
               <label onClick={(e) => e.stopPropagation()}>
                 <input
@@ -342,7 +363,37 @@ function CategorySection({
                   checked={item.checked}
                   onChange={() => toggleItem(item.id)}
                 />
-                <span className="item-name">{item.name}</span>
+                {editingItemId === item.id ? (
+                  <input
+                    type="text"
+                    className="item-edit-input"
+                    value={editingItemName}
+                    onChange={(e) => setEditingItemName(e.target.value)}
+                    onBlur={saveItemName}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        saveItemName();
+                      } else if (e.key === 'Escape') {
+                        setEditingItemId(null);
+                        setEditingItemName('');
+                      }
+                    }}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span
+                    className="item-name"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      startEditingItem(item);
+                    }}
+                  >
+                    {item.name}
+                  </span>
+                )}
               </label>
               <button
                 onClick={(e) => {
@@ -1348,6 +1399,7 @@ export default function PackingList() {
               setCategoryInputs={setCategoryInputs}
               toggleItem={safeToggleItem}
               deleteItem={deleteItem}
+              updateItem={updateItem}
               setEditingCategory={setEditingCategory}
               onDragStart={handleDragStart}
               draggedItem={draggedItem}
