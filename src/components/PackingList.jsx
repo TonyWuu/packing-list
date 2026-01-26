@@ -430,7 +430,7 @@ function CategorySection({
 }
 
 // Read-only partner list component
-function PartnerList({ items, settings, loading, error, onRemove }) {
+function PartnerList({ items, settings, ownerName, loading, error, onRemove }) {
   const [collapsedCategories, setCollapsedCategories] = useState({});
 
   const groupedItems = useMemo(() => {
@@ -466,7 +466,7 @@ function PartnerList({ items, settings, loading, error, onRemove }) {
     return (
       <div className="partner-list">
         <div className="partner-header">
-          <h2>Partner's List</h2>
+          <h2>{ownerName || 'Partner'}'s List</h2>
         </div>
         <div className="partner-loading">Loading...</div>
       </div>
@@ -477,7 +477,7 @@ function PartnerList({ items, settings, loading, error, onRemove }) {
     return (
       <div className="partner-list">
         <div className="partner-header">
-          <h2>Partner's List</h2>
+          <h2>{ownerName || 'Partner'}'s List</h2>
           <button className="icon-btn" onClick={onRemove} title="Remove partner list">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6L6 18M6 6l12 12" />
@@ -492,7 +492,7 @@ function PartnerList({ items, settings, loading, error, onRemove }) {
   return (
     <div className="partner-list">
       <div className="partner-header">
-        <h2>Partner's List</h2>
+        <h2>{ownerName || 'Partner'}'s List</h2>
         <button className="icon-btn" onClick={onRemove} title="Remove partner list">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M18 6L6 18M6 6l12 12" />
@@ -501,7 +501,7 @@ function PartnerList({ items, settings, loading, error, onRemove }) {
       </div>
 
       <div className="progress-section">
-        <span className="progress-label">Partner's Progress</span>
+        <span className="progress-label">{ownerName || 'Partner'}'s Progress</span>
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
@@ -611,6 +611,7 @@ export default function PackingList() {
   const {
     items: partnerItems,
     settings: partnerSettings,
+    ownerName: partnerName,
     loading: partnerLoading,
     error: partnerError
   } = useSharedList(showPartnerList ? partnerToken : null);
@@ -1472,6 +1473,7 @@ export default function PackingList() {
         <PartnerList
           items={partnerItems}
           settings={partnerSettings}
+          ownerName={partnerName}
           loading={partnerLoading}
           error={partnerError}
           onRemove={handleRemovePartner}

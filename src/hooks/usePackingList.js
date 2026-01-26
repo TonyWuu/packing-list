@@ -149,9 +149,12 @@ export function usePackingList() {
     const shareRef = doc(db, 'users', user.uid, 'config', 'share');
     await setDoc(shareRef, { token, userId: user.uid });
 
-    // Also create a public lookup document
+    // Also create a public lookup document with user's name
     const publicRef = doc(db, 'shares', token);
-    await setDoc(publicRef, { userId: user.uid });
+    await setDoc(publicRef, {
+      userId: user.uid,
+      displayName: user.displayName || 'Partner'
+    });
 
     return token;
   };
@@ -186,6 +189,7 @@ export function usePackingList() {
 export function useSharedList(token) {
   const [items, setItems] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [ownerName, setOwnerName] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -207,7 +211,8 @@ export function useSharedList(token) {
           return;
         }
 
-        const { userId } = shareSnap.data();
+        const { userId, displayName } = shareSnap.data();
+        setOwnerName(displayName || 'Partner');
 
         // Listen to their items
         const itemsRef = collection(db, 'users', userId, 'items');
@@ -241,5 +246,5 @@ export function useSharedList(token) {
     fetchSharedList();
   }, [token]);
 
-  return { items, settings, loading, error };
+  return { items, settings, ownerName, loading, error };
 }

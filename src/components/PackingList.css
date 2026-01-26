@@ -928,19 +928,33 @@
 }
 
 .packing-list-container.side-by-side {
-  display: flex;
-  gap: 24px;
-  max-width: 1100px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 20px 32px;
+  padding-bottom: 40px;
 }
 
 .packing-list-container.side-by-side .packing-list {
-  flex: 1;
   max-width: none;
+  min-height: auto;
   margin: 0;
-  padding-left: 0;
-  padding-right: 0;
+  padding: 0;
+}
+
+.packing-list-container.side-by-side .partner-list {
+  min-height: auto;
+  padding: 0;
+}
+
+/* Unified header styling for side-by-side */
+.packing-list-container.side-by-side .header-top,
+.packing-list-container.side-by-side .partner-header {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 20px;
 }
 
 /* Partner list styles */
