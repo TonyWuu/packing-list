@@ -38,6 +38,9 @@ export function usePackingList() {
       }));
       setItems(itemsData);
       setLoading(false);
+    }, (err) => {
+      console.error('Items snapshot error:', err);
+      setLoading(false);
     });
 
     return unsubscribe;

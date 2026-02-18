@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager } from 'firebase/firestore';
 
 // TODO: Replace with your Firebase config from Firebase Console
 // Go to: https://console.firebase.google.com
@@ -21,4 +21,6 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 // Always show account picker instead of auto-selecting last account
 googleProvider.setCustomParameters({ prompt: 'select_account' });
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentSingleTabManager({ forceOwnership: true }) })
+});
